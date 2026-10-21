@@ -73,7 +73,7 @@ Knocked-over pieces, used mines and grenades, and the Toilet all work online: ev
 
 ## Config
 
-`BepInEx/config/brad.slipskid.goodcards.cfg` (created on first launch):
+`BepInEx/config/slipskid.goodcards.cfg` (created on first launch):
 
 - `[Card.<Name>] Rarity`: how often each card is offered, or `Off` to never offer it. **Keep this the same
   for every player.** Off keeps the card registered, so lobbies stay in sync.
@@ -93,6 +93,6 @@ Knocked-over pieces, used mines and grenades, and the Toilet all work online: ev
 
 ## Credits
 
-- Made by Brad, with a lot of help from AI tools (Claude) for the code, models and card art.
+- Made with a lot of help from AI tools (Claude) for the code, models and card art.
   All models and art were made for this mod; nothing is taken from the game or other games.
 - Built on BepInEx and HarmonyX.

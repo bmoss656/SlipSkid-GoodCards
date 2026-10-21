@@ -9,7 +9,7 @@ namespace SlipSkid.CustomContent;
 public class Plugin : BaseUnityPlugin
 {
     // Never change Guid after release: it names every player's config file.
-    public const string Guid = "brad.slipskid.goodcards";
+    public const string Guid = "slipskid.goodcards";
     public const string Name = "Good Cards";
     public const string Version = "0.1.0";   // keep in step with thunderstore/manifest.json
 
