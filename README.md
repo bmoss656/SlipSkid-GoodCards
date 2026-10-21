@@ -16,5 +16,5 @@ and add a `thunderstore/CHANGELOG.md` entry.
 
 ## Making obstacles
 Models are authored in Blender (5.x) from `tools/blender/ss_models.py` using `tools/blender/ss_lib.py`,
-which exports `assets/obstacles/<Id>.json` and renders card art. See [CLAUDE.md](CLAUDE.md) for the
-pipeline and [docs/game-notes.md](docs/game-notes.md) for how the game works under the hood.
+which exports `assets/obstacles/<Id>.json` and renders card art. See [docs/game-notes.md](docs/game-notes.md)
+for how the game works under the hood.
