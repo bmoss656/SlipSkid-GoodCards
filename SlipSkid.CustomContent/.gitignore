@@ -1,0 +1,9 @@
+bin/
+obj/
+decompiled/
+local.props
+*.user
+.vs/
+unity/Library/
+unity/Temp/
+unity/Logs/

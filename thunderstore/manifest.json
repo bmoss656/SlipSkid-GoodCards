@@ -1,0 +1,9 @@
+{
+  "name": "GoodCards",
+  "version_number": "0.1.0",
+  "website_url": "https://github.com/bmoss656/SlipSkid-GoodCards",
+  "description": "41 new draft cards for Slip & Skid: giant household obstacles, traps, launchers, road pieces, a Toilet that flushes you across the map, and a reverse-steering road. Everyone in the lobby needs the same version.",
+  "dependencies": [
+    "SlipSkid_Modding-BepInExPack_SlipSkid-6.0.697"
+  ]
+}

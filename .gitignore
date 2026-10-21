@@ -1,0 +1,11 @@
+bin/
+obj/
+dist/
+tools/blender/renders/
+decompiled/
+local.props
+*.user
+.vs/
+unity/Library/
+unity/Temp/
+unity/Logs/

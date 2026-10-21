@@ -1,0 +1,57 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Machine-specific paths (GameDir, BepInExDir) live in local.props, which is git-ignored. -->
+  <Import Project="local.props" Condition="Exists('local.props')" />
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>SlipSkid.CustomContent</AssemblyName>
+    <RootNamespace>SlipSkid.CustomContent</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <GameDir Condition="'$(GameDir)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Slip &amp; Skid</GameDir>
+    <Managed>$(GameDir)\Slip &amp; Skid_Data\Managed</Managed>
+    <!-- With r2modman, BepInEx lives in the profile folder, not the game folder. -->
+    <BepInExDir Condition="'$(BepInExDir)' == ''">$(GameDir)\BepInEx</BepInExDir>
+    <BepInExCore>$(BepInExDir)\core</BepInExCore>
+    <PluginDir Condition="'$(PluginDir)' == ''">$(BepInExDir)\plugins\CustomContent</PluginDir>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="decompiled\**;unity\**" />
+    <None Remove="decompiled\**;unity\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="$(BepInExCore)\BepInEx.Core.dll" Private="false" />
+    <Reference Include="$(BepInExCore)\BepInEx.Unity.Mono.dll" Private="false" />
+    <Reference Include="$(BepInExCore)\0Harmony.dll" Private="false" />
+    <Reference Include="$(Managed)\Assembly-CSharp.dll" Private="false" />
+    <Reference Include="$(Managed)\UnityEngine.dll" Private="false" />
+    <Reference Include="$(Managed)\UnityEngine.CoreModule.dll" Private="false" />
+    <Reference Include="$(Managed)\UnityEngine.PhysicsModule.dll" Private="false" />
+    <Reference Include="$(Managed)\UnityEngine.AssetBundleModule.dll" Private="false" />
+    <Reference Include="$(Managed)\Unity.Netcode.Runtime.dll" Private="false" />
+    <Reference Include="$(Managed)\Unity.TextMeshPro.dll" Private="false" />
+    <Reference Include="$(Managed)\Unity.Localization.dll" Private="false" />
+    <Reference Include="$(Managed)\Unity.ResourceManager.dll" Private="false" />
+    <Reference Include="$(Managed)\UnityEngine.ImageConversionModule.dll" Private="false" />
+    <Reference Include="$(Managed)\Unity.InputSystem.dll" Private="false" />
+    <Reference Include="$(Managed)\Newtonsoft.Json.dll" Private="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Card art and obstacle data, copied next to the DLL keeping their subfolders. -->
+    <ModAssets Include="assets\**\*.png;assets\**\*.json" />
+  </ItemGroup>
+
+  <Target Name="CheckPaths" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(Managed)\Assembly-CSharp.dll')" Text="Game not found. Set GameDir in local.props (currently: $(GameDir))." />
+    <Error Condition="!Exists('$(BepInExCore)\BepInEx.Core.dll')" Text="BepInEx not found. Install BepInExPack SlipSkid in your r2modman dev profile, launch once, then set BepInExDir in local.props (currently: $(BepInExDir))." />
+  </Target>
+
+  <Target Name="CopyToPlugins" AfterTargets="Build">
+    <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(PluginDir)" />
+    <Copy SourceFiles="@(ModAssets)" DestinationFiles="@(ModAssets->'$(PluginDir)\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="bundles\customcontent.bundle" DestinationFolder="$(PluginDir)" Condition="Exists('bundles\customcontent.bundle')" />
+  </Target>
+</Project>
