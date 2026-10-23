@@ -19,11 +19,19 @@ internal sealed class LaunchZone : MonoBehaviour
     private Obstacle _obstacle;
     private readonly Dictionary<SphereCarController, float> _lastLaunch = new();
 
-    private void Start() => _obstacle = GetComponentInParent<Obstacle>();
+    private bool _singleUse;
+
+    private void Start()
+    {
+        _obstacle = GetComponentInParent<Obstacle>();
+        _singleUse = BurstEffect.ConsumesOn(_obstacle, channel);
+    }
 
     private void OnTriggerEnter(Collider other)
     {
         if (!CarLookup.IsPlaced(_obstacle) || !CarLookup.TryGetOwnedCar(other, out _, out var car))
+            return;
+        if (_singleUse && !CarLookup.IsRacing())
             return;
         if (_lastLaunch.TryGetValue(car, out float last) && Time.time - last < cooldown)
             return;

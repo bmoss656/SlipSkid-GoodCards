@@ -1,6 +1,6 @@
 # SlipSkid-GoodCards
 
-Good Cards: a BepInEx 6 mod for Slip & Skid that adds 41 draft cards (obstacles, traps, launchers, road
+Good Cards: a BepInEx 6 mod for Slip & Skid that adds 40 draft cards (obstacles, traps, launchers, road
 pieces and full-art epic cards). The player-facing description is [thunderstore/README.md](thunderstore/README.md).
 
 ## Building

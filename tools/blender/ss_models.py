@@ -73,21 +73,37 @@ def book_stack():
 
 
 def baguette():
-    crust, end, slash = "toon:#D9963E", "toon:#C47F2C", "toon:#F3D49A"
-    loaf = pivot("Loaf", (0, 0, 0.55), rot=(0, 0, 8))
-    sphere("Body", 1.0, mat=crust, scale=(3.6, 0.6, 0.5), parent=loaf, segments=32, rings=14)
-    for i in range(5):
-        x = -2.2 + i * 1.1
-        box(f"Slash{i}", (0.7, 0.18, 0.08), (x, 0, 0.47), rot=(0, 6, 35), mat=slash, bevel=0.03, parent=loaf)
-    sphere("TipA", 0.35, (-3.45, 0, 0.0), mat=end, scale=(1, 1.3, 1), parent=loaf)
-    sphere("TipB", 0.35, (3.45, 0, 0.0), mat=end, scale=(1, 1.3, 1), parent=loaf)
+    crust, dark, crumb, flour = "toon:#C97B30", "toon:#A85E22", "toon:#F2D49A", "toon:#FFF6E6"
+    half = 3.7
+    loaf = pivot("Loaf", (0, 0, 0.36), rot=(0, 0, 8))
+
+    def shape(x):
+        t = min(1.0, abs(x) / half)
+        return (1 - t ** 2.6) ** 0.55
+
+    def top(x):   # height of the crust's top surface above the pivot at x
+        return 0.62 * shape(x) + 0.06 * (1 - (x / half) ** 2)
+
+    stations = []
+    for i in range(33):
+        x = -half + 2 * half * i / 32
+        k = shape(x)
+        wobble = 1 + 0.035 * math.sin(x * 2.1 + 0.6)
+        stations.append((x, max(0.07, 0.6 * k) * wobble, max(0.06, 0.62 * k), 0.06 * (1 - (x / half) ** 2)))
+    stations = [(-half - 0.1, 0, 0, 0.0)] + stations + [(half + 0.1, 0, 0, 0.0)]
+    loft("Crust", stations, mat=crust, segments=28, flat_bottom=0.45, parent=loaf)
+    # The scoring: pale crumb bulging out of each cut, with a dark raised crust "ear" along one side.
+    for i in range(6):
+        x = -2.55 + i * 1.02
+        cut = pivot(f"Cut{i}", (x, 0.0, top(x) - 0.06), rot=(0, 0, 32), parent=loaf)
+        sphere(f"Crumb{i}", 1.0, (0, -0.03, 0.02), mat=crumb, scale=(0.56, 0.17, 0.1), segments=16, rings=8, parent=cut)
+        sphere(f"Ear{i}", 1.0, (0.02, 0.12, 0.07), rot=(18, 0, 0), mat=dark, scale=(0.6, 0.09, 0.09), segments=14, rings=6, parent=cut)
     rnd = random.Random(12)
-    for i in range(16):
-        x = rnd.uniform(-3.0, 3.0)
-        top = 0.5 * math.sqrt(max(0.0, 1 - (x / 3.6) ** 2))
-        sphere(f"Flour{i}", rnd.uniform(0.05, 0.1), (x, rnd.uniform(-0.25, 0.25), top - 0.01), mat="toon:#FFF8EC",
-               scale=(1, 1, 0.4), segments=8, rings=4, parent=loaf)
-    collider("LoafCol", "box", (7.2, 1.2, 1.0), parent=loaf)
+    for i in range(12):
+        x = rnd.uniform(-2.9, 2.9)
+        sphere(f"Flour{i}", rnd.uniform(0.04, 0.08), (x, rnd.uniform(-0.28, 0.28), top(x) - 0.03), mat=flour,
+               scale=(1, 1, 0.35), segments=8, rings=4, parent=loaf)
+    collider("LoafCol", "box", (7.2, 1.2, 1.0), (0, 0, 0.18), parent=loaf)
     return dict(name="The Baguette", description="A speed bump, but French.", rarity="Common")
 
 
@@ -172,30 +188,83 @@ def mattress():
 
 
 def whoopee_cushion():
-    pink, dark = "toon:#FF6FAE", "toon:#E04A8C"
-    sphere("Cushion", 2.0, (0, 0, 0.5), mat=pink, scale=(1.0, 1.0, 0.27), segments=32)
-    cyl("Neck", 0.45, 1.1, (0, 2.3, 0.35), rot=(-90, 0, 0), mat=pink, radius2=0.3, verts=16)
-    torus("Lip", 0.32, 0.09, (0, 2.85, 0.35), rot=(90, 0, 0), mat=dark, seg=16, ring=6)
+    pink, dark, light = "toon:#FF6FAE", "toon:#D9407F", "toon:#FFB3D3"
+    body = [(0, 0.04), (1.5, 0.06), (1.95, 0.22), (2.08, 0.45), (1.98, 0.7), (1.6, 0.9), (0.9, 1.0), (0, 1.03)]
+    lathe("Cushion", body, mat=pink, segments=40)
+    torus("Seam", 2.07, 0.06, (0, 0, 0.45), mat=dark, seg=48, ring=6)
+    lathe("Shine", [(0, 1.035), (0.55, 1.01), (0.75, 0.99), (0, 0.99)], (-0.5, -0.4, 0.0), mat=light, segments=20)
+    neck = [(0.55, 0.0), (0.42, 0.4), (0.33, 0.8), (0.33, 1.05), (0.42, 1.15), (0.42, 1.28), (0.3, 1.32)]
+    lathe("Neck", neck, (0, 1.75, 0.32), rot=(-90, 0, 0), mat=pink, segments=20, scale=(1, 0.6, 1))
+    torus("Lip", 0.36, 0.07, (0, 2.95, 0.32), rot=(90, 0, 0), mat=dark, seg=20, ring=6)
     collider("Puff", "box", (3.8, 3.8, 0.8), (0, 0, 0.4), zone=bounce("velocity", 1.0, velocity=[0, 22, 0]))
     return dict(name="The Whoopee Cushion", description=f"Pfffbbbt. {kw('Launches', GREEN)} anything that sits on it.",
                 rarity="Rare")
 
 
 def hot_sauce_puddle():
-    red, dark = "toon:#D7261E", "toon:#A8140F"
-    cyl("Splat", 2.6, 0.12, (0, 0.4, 0.06), mat=red, verts=32, bevel=0.05)
+    glass, cap, label, chilli, stem = "toon:#B3170F", "toon:#3FA34D", "toon:#FFF3E0", "toon:#E3263F", "toon:#2E8B3A"
+    deep, sauce, light, ripple = "toon:#9E120C", "toon:#D7261E", "toon:#F0503A", "toon:#FF8A70"
+    shine = "glow:#FFEDE6"   # unlit, so the highlights stay bright like a wet reflection
+    size = 1.2   # everything (sauce, bottle, boost zone) is 1.2x the 0.1 puddle
+    # The bottle lies on its side behind the puddle, neck pointing into it (+Y, the way the sauce boosts you).
+    bottle = pivot("Bottle", (0, -3.3 * size, 0.78 * size), rot=(-90, 0, 0))
+    prof = [(0, 0), (0.65, 0), (0.76, 0.1), (0.78, 0.4), (0.78, 1.7), (0.7, 2.0), (0.42, 2.3), (0.3, 2.55), (0.3, 3.1),
+            (0.36, 3.15), (0.36, 3.25), (0, 3.25)]
+    lathe("Glass", [(r * size, z * size) for r, z in prof], mat=glass, segments=28, parent=bottle)
+    lathe("Label", [(0.8 * size, 0.45 * size), (0.8 * size, 1.6 * size)], mat=label, segments=28, parent=bottle)
+    # The cap popped off and rolled away.
+    lathe("Cap", [(0, 0), (0.38 * size, 0), (0.4 * size, 0.55 * size), (0.3 * size, 0.65 * size), (0, 0.65 * size)],
+          (-1.9 * size, -0.9 * size, 0.4 * size), rot=(90, 0, 35), mat=cap, segments=18)
+    # A chilli printed on the label, on the side the card camera sees.
+    pepper = pivot("Chilli", (0.81 * size, 0, 1.0 * size), rot=(0, 90, 0), parent=bottle)
+    pepper.scale = (2.0, 2.0, 1.0)
+    loft("ChilliBody", [(-0.45, 0, 0, 0.05), (-0.38, 0.1, 0.05, 0.03), (-0.1, 0.16, 0.06, 0.0), (0.2, 0.14, 0.05, -0.02),
+                        (0.36, 0.08, 0.04, -0.06), (0.42, 0, 0, -0.1)], mat=chilli, segments=12, parent=pepper)
+    box("ChilliStem", (0.12, 0.05, 0.05), (-0.5, 0, 0.06), rot=(0, -30, 0), mat=stem, bevel=0, parent=pepper)
+    nose = Vector((0, -3.3 * size + 3.2 * size, 0))
+    # Sauce glugging from the neck: a wobbling blob where it lands, with ripples spreading out.
+    glug = pivot("Glug", (nose.x, nose.y + 0.2, 0.0), anim=dict(type="scale", min=(1, 1, 0.8), max=(1.12, 1.12, 1.2),
+                                                                 speed=1.1, wrap="pingpong", curve="ease"))
+    lathe("GlugBlob", [(0, 0), (0.6, 0.02), (0.42, 0.12), (0.26, 0.24), (0.1, 0.34), (0, 0.38)], mat=light, segments=20,
+          parent=glug)
+    sphere("GlugShine", 0.11, (-0.14, -0.18, 0.27), mat=shine, scale=(1, 0.6, 0.6), segments=10, rings=6, parent=glug)
+    # The puddle: thin, irregular, darker at the edge and lighter towards the middle, with bright streaks.
+    cy = 0.6 * size
     rnd = random.Random(5)
-    for i in range(6):
-        a = rnd.uniform(0, 2 * math.pi)
-        cyl(f"Drop{i}", rnd.uniform(0.3, 0.6), 0.12, (math.cos(a) * 2.8, 0.4 + math.sin(a) * 2.8, 0.06), mat=red, verts=16)
-    bottle = pivot("Bottle", (0, -2.6, 0.75), rot=(-90, 0, 0))
-    cyl("Glass", 0.75, 2.6, mat=dark, verts=24, bevel=0.08, parent=bottle)
-    cyl("Label", 0.77, 1.2, (0, 0, -0.2), mat=WHITE, verts=24, bevel=0, parent=bottle)
-    cyl("Neck", 0.35, 0.9, (0, 0, 1.6), mat=dark, verts=16, parent=bottle)
-    cyl("Cap", 0.4, 0.5, (0, 0, 2.2), mat="toon:#3FA34D", verts=16, parent=bottle)
-    collider("BottleCol", "box", (1.6, 3.6, 1.5), (0, -2.3, 0.75))
-    collider("Spicy", "box", (5.2, 5.0, 1.4), (0, 0.6, 0.7), trigger=True,
+    puddle("Sauce", 2.9 * size, 2.7 * size, 0.03, (0, cy, 0), mat=deep, wobble=0.18, seed=11)
+    puddle("SauceMid", 2.55 * size, 2.35 * size, 0.036, (0.05, cy + 0.05, 0), mat=sauce, wobble=0.18, seed=11)
+    puddle("SaucePool", 1.6 * size, 1.4 * size, 0.042, (0.3, cy + 0.35, 0), rot=(0, 0, 25), mat=light, wobble=0.25, seed=3)
+    puddle("Trail", 0.55, 1.0, 0.035, (0.1, nose.y - 0.2, 0), mat=sauce, wobble=0.15, seed=6)
+    for i in range(4):
+        x, y = rnd.uniform(-1.6, 1.6) * size, cy + rnd.uniform(-1.4, 1.4) * size
+        turn = rnd.uniform(25, 35)
+        for j, (length, off) in enumerate([(rnd.uniform(0.6, 1.0), 0.0), (rnd.uniform(0.3, 0.55), 0.26)]):
+            sphere(f"Glint{i}_{j}", 1.0, (x - off * 0.5, y + off, 0.05), mat=shine, scale=(length, 0.08, 0.012),
+                   rot=(0, 0, turn), segments=14, rings=4)
+    # Chilli flakes and seeds floating in it.
+    for i in range(14):
+        x, y = rnd.uniform(-2.2, 2.2) * size, cy + rnd.uniform(-2.0, 2.0) * size
+        flake = i % 3 != 0
+        sphere(f"Fleck{i}", 1.0, (x, y, 0.046), mat=deep if flake else "toon:#F6D88A",
+               scale=(rnd.uniform(0.08, 0.14), rnd.uniform(0.05, 0.1), 0.012), rot=(0, 0, rnd.uniform(0, 180)),
+               segments=8, rings=4)
+    for i, (cx, cyy, speed) in enumerate([(nose.x, nose.y + 0.2, 0.55), (nose.x, nose.y + 0.2, 0.4), (0.5, cy + 0.6, 0.3)]):
+        ring = pivot(f"Ripple{i}", (cx, cyy, 0.05), anim=dict(type="scale", min=(0.2, 0.2, 1), max=(1.0, 1.0, 1), speed=speed,
+                                                              curve="linear"))
+        torus(f"RippleRing{i}", 1.2 if i < 2 else 1.7, 0.03, mat=ripple, seg=40, ring=4, parent=ring)
+    for i in range(7):
+        a = rnd.uniform(0, math.tau)
+        puddle(f"Drop{i}", rnd.uniform(0.2, 0.4), rnd.uniform(0.18, 0.35), 0.03,
+               (math.cos(a) * 3.3 * size, cy + math.sin(a) * 3.1 * size, 0.005 * i), mat=sauce, wobble=0.12, seed=40 + i,
+               segments=24)
+    collider("BottleCol", "box", (1.6 * size, 3.9 * size, 1.6 * size), (0, -3.3 * size + 1.9 * size, 0.78 * size))
+    # Normal grip, but the car's drift spray and skid marks come out sauce red.
+    collider("SauceCol", "box", (5.4 * size, 5.0 * size, 0.1), (0, cy, 0.0),
+             zone={"type": "oil", "grip": 1.0, "steer": 1.0, "engine": 1.0, "tint": "#D7261E"})
+    collider("Spicy", "box", (5.2 * size, 5.0 * size, 1.4 * size), (0, cy, 0.7 * size), trigger=True,
              zone={"type": "accel", "acceleration": 45, "setVelocity": True, "velocityOnEnter": 40})
+    collider("SplashCol", "box", (5.8 * size, 5.4 * size, 3.0), (0, cy, 1.5), trigger=True,
+             zone={"type": "splash", "colorA": sauce, "colorB": shine, "surfaceHeight": 0.05})
     return dict(name="The Hot Sauce Puddle", description=f"Extra spicy. {kw('Boosts', GREEN)} anything that drives through it.",
                 rarity="Rare")
 
@@ -234,17 +303,35 @@ def lego_brick():
 
 
 def blender():
-    cyl("Base", 2.4, 1.4, (0, 0, 0.7), mat="toon:#3A3F4B", verts=32, bevel=0.15, radius2=2.1)
-    for i, colour in enumerate(["toon:#E3263F", "toon:#F2C14E", "toon:#3FA34D"]):
-        box(f"Button{i}", (0.45, 0.3, 0.3), (-0.6 + i * 0.6, -2.2, 0.75), rot=(-8, 0, 0), mat=colour, bevel=0.05)
-    cyl("Hub", 0.45, 0.5, (0, 0, 1.6), mat=METAL, verts=16)
-    torus("JugCollar", 2.25, 0.14, (0, 0, 1.42), mat=METAL)
-    cyl("Badge", 0.5, 0.06, (0, -2.25, 1.05), rot=(-80, 0, 0), mat="primary", verts=24, bevel=0.01)
+    shell, panel, chrome, glass = "toon:#3A3F4B", "toon:#23262E", METAL, "toon:#CFEFFF"
+    rounded_rect("Base", (4.6, 4.6), 1.1, 1.2, mat=shell, bevel=0.12)
+    lathe("TopPlate", [(2.15, 1.18), (2.2, 1.26), (1.9, 1.36), (0, 1.36)], mat=chrome, segments=40)
+    for i, (x, y) in enumerate([(-1.7, -1.7), (1.7, -1.7), (1.7, 1.7), (-1.7, 1.7)]):
+        cyl(f"Foot{i}", 0.32, 0.12, (x, y, 0.06), mat=panel, verts=16, bevel=0.03)
+    # Control panel on the front face: speed dial and three buttons.
+    face = pivot("Panel", (0, -2.31, 0.62))
+    rounded_rect("PanelPlate", (3.4, 0.9), 0.3, 0.06, rot=(90, 0, 0), mat=panel, bevel=0.02, parent=face)
+    cyl("Dial", 0.32, 0.18, (-1.05, -0.08, 0), rot=(90, 0, 0), mat=chrome, verts=24, bevel=0.04, parent=face)
+    box("DialMark", (0.06, 0.06, 0.24), (-1.05, -0.18, 0.12), mat="toon:#E3263F", bevel=0, parent=face)
+    for i, colour in enumerate(["toon:#3FA34D", "toon:#F2C14E", "toon:#E3263F"]):
+        rounded_rect(f"Button{i}", (0.42, 0.3), 0.1, 0.14, (-0.15 + i * 0.6, -0.04, 0), rot=(90, 0, 0), mat=colour,
+                     bevel=0.03, parent=face)
+    cyl("Light", 0.07, 0.06, (1.45, -0.05, 0.25), rot=(90, 0, 0), mat="toon:#7CFF7C", verts=12, bevel=0, parent=face)
+    cyl("Badge", 0.42, 0.05, (0, -2.33, 0.18), rot=(90, 0, 0), mat="primary", verts=24, bevel=0.01)
+    # The jug's broken-off foot ring and the drive coupling.
+    lathe("JugFoot", [(1.95, 1.34), (2.08, 1.34), (2.05, 1.62), (1.93, 1.62)], mat=glass, segments=40, closed=True)
+    lathe("Hub", [(0.62, 1.34), (0.62, 1.5), (0.4, 1.62), (0.4, 1.8), (0.2, 1.88), (0, 1.88)], mat=chrome, segments=24)
+    for i in range(6):
+        a = math.radians(i * 60)
+        box(f"Tooth{i}", (0.18, 0.22, 0.14), (0.62 * math.cos(a), 0.62 * math.sin(a), 1.45), rot=(0, 0, i * 60), mat=panel, bevel=0.02)
     spin = pivot("Blades", (0, 0, 1.75), anim=dict(type="rotation", axis="Z", min=0, max=360, speed=1.1, curve="linear"))
+    blade = [(-2.8, 0, 0, 0.12), (-2.55, 0.16, 0.035, 0.1), (-1.6, 0.27, 0.04, 0.04), (-0.4, 0.3, 0.045, 0),
+             (0.4, 0.3, 0.045, 0), (1.6, 0.27, 0.04, 0.04), (2.55, 0.16, 0.035, 0.1), (2.8, 0, 0, 0.12)]
     for i in range(2):
         arm = pivot(f"Arm{i}", rot=(0, 0, i * 90), parent=spin)
-        box(f"Blade{i}", (5.6, 0.55, 0.1), rot=(14, 0, 0), mat=METAL, bevel=0.03, parent=arm)
+        loft(f"Blade{i}", blade, rot=(14 if i == 0 else -14, 0, 0), mat=chrome, segments=12, smooth_angle=30, parent=arm)
         collider(f"BladeKill{i}", "box", (5.6, 0.9, 0.7), parent=arm, trigger=True, zone=KILL)
+    lathe("Nut", [(0.22, -0.05), (0.22, 0.12), (0.12, 0.2), (0, 0.2)], mat=chrome, segments=6, parent=spin, smooth_angle=20)
     collider("BaseCol", "box", (4.6, 4.6, 1.4), (0, 0, 0.7))
     return dict(name="The Blender", description=f"Will it blend? Yes. {kw('Destroys', RED)} any vehicle the blades touch.",
                 rarity="Rare")
@@ -289,16 +376,34 @@ def lava_lamp():
 
 
 def hairbrush():
-    box("Head", (4.0, 3.2, 0.6), (0, 0, 0.3), mat="primary", bevel=0.25)
-    for ix in range(7):
-        for iy in range(5):
-            cyl(f"Bristle{ix}_{iy}", 0.09, 1.0, (-1.65 + ix * 0.55, -1.2 + iy * 0.6, 1.1), mat=BLACK, verts=8, bevel=0)
-            sphere(f"Tip{ix}_{iy}", 0.13, (-1.65 + ix * 0.55, -1.2 + iy * 0.6, 1.62), mat=WHITE, segments=8, rings=4)
+    pad, bristle = "toon:#2A2A30", "toon:#4A4E5A"
+    rounded_rect("Head", (4.0, 3.2), 1.25, 0.42, mat="primary", bevel=0.14)
+    rounded_rect("Cushion", (3.5, 2.7), 1.0, 0.16, (0, 0, 0.38), mat=pad, bevel=0.06)
+    i = 0
+    for ix in range(9):
+        for iy in range(7):
+            x, y = -1.68 + ix * 0.42, -1.26 + iy * 0.42 + (0.21 if ix % 2 else 0)
+            if (x / 1.62) ** 2 + (y / 1.22) ** 2 > 1:
+                continue
+            cyl(f"Bristle{i}", 0.055, 0.95, (x, y, 1.0), mat=bristle, verts=8, bevel=0)
+            sphere(f"Tip{i}", 0.11, (x, y, 1.5), mat=WHITE, segments=10, rings=6)
+            i += 1
     run, rise = 5.4, 1.6
     tilt = math.degrees(math.atan2(rise, run))
     handle = pivot("Handle", (0, -1.6 - run / 2, rise / 2), rot=(tilt, 0, 0))
-    box("Grip", (1.3, run + 0.4, 0.45), mat="secondary", bevel=0.18, parent=handle)
-    collider("HandleCol", "box", (1.3, run + 0.4, 0.45), parent=handle)
+    length = run + 0.4
+    stations = []
+    for k in range(13):
+        u = k / 12                      # 0 at the far end, 1 at the head
+        x = -length / 2 + length * u
+        width = 0.62 - 0.22 * u + 0.08 * math.sin(math.pi * min(1.0, u * 1.6))
+        stations.append((x, width, 0.24, 0.0))
+    # Rounded far end.
+    stations = [(-length / 2 - 0.3, 0, 0, 0.0), (-length / 2 - 0.2, 0.42, 0.17, 0.0), (-length / 2 - 0.08, 0.56, 0.22, 0.0)] + stations
+    loft("Grip", stations, rot=(0, 0, 90), mat="secondary", segments=20, flat_bottom=0.4, parent=handle)
+    rounded_rect("GripInlay", (0.5, 2.6), 0.24, 0.06, (0, -1.0, 0.2), mat=pad, bevel=0.02, parent=handle)
+    cyl("HangHole", 0.16, 0.05, (0, -2.45, 0.235), mat=pad, verts=16, bevel=0, parent=handle)
+    collider("HandleCol", "box", (1.3, length, 0.45), parent=handle)
     collider("HeadCol", "box", (4.0, 3.2, 0.6), (0, 0, 0.3))
     collider("Bristles", "box", (3.9, 3.1, 1.1), (0, 0, 1.15), trigger=True, zone=KILL)
     return dict(name="The Hairbrush", description=f"Bad hair day. The bristles {kw('Destroy', RED)} vehicles, the handle is a ramp.",
@@ -512,20 +617,37 @@ def slingshot_card_extras():
 
 
 def shaken_soda():
-    glass, label, foam = "toon:#3FBF5A", "toon:#E3263F", "toon:#FFF3D6"
+    glass, label, foam, cap = "toon:#3FBF5A", "toon:#E3263F", "toon:#FFF3D6", "toon:#E3263F"
     bottle = pivot("Bottle", (0, 2.2, 1.1), rot=(62, 0, 0))  # neck aimed at the puddle
-    cyl("Glass", 1.1, 3.6, mat=glass, verts=24, bevel=0.2, parent=bottle)
-    cyl("Label", 1.12, 1.4, (0, 0, -0.3), mat=label, verts=24, bevel=0, parent=bottle)
-    cyl("Neck", 0.55, 1.4, (0, 0, 2.3), mat=glass, verts=20, radius2=0.42, parent=bottle)
+    profile = [(0.0, -1.8), (0.55, -1.8), (0.95, -1.72), (1.1, -1.45), (1.12, -1.2), (1.05, -0.95), (1.12, -0.7),
+               (1.12, 0.6), (1.05, 0.85), (1.12, 1.05), (1.08, 1.35), (0.85, 1.8), (0.55, 2.2), (0.46, 2.45),
+               (0.46, 2.75), (0.56, 2.78), (0.56, 2.86), (0.4, 2.9), (0.0, 2.9)]
+    lathe("Glass", profile, mat=glass, segments=28, parent=bottle)
+    cyl("Label", 1.15, 1.25, (0, 0, -0.05), mat=label, verts=28, bevel=0, parent=bottle)
+    cyl("LabelStripe", 1.16, 0.18, (0, 0, -0.05), mat=WHITE, verts=28, bevel=0, parent=bottle)
+    for i in range(5):
+        a = math.radians(i * 72)
+        sphere(f"Petal{i}", 0.42, (0.55 * math.cos(a), 0.55 * math.sin(a), -1.72), mat=glass, scale=(1, 1, 0.45),
+               segments=12, rings=6, parent=bottle)
     collider("BottleCol", "box", (2.2, 2.2, 3.6), parent=bottle)
-    cyl("Puddle", 2.2, 0.1, (0, -1.0, 0.05), mat=foam, verts=32, bevel=0.03)
+    # The cap that popped off, lying in the foam.
+    lathe("Cap", [(0, 0), (0.5, 0), (0.52, 0.05), (0.52, 0.4), (0.44, 0.46), (0, 0.46)], (1.9, -2.6, 0.0), rot=(0, 12, 30),
+          mat=cap, segments=18)
+    rnd = random.Random(5)
+    for i in range(9):
+        a, r = rnd.uniform(0, math.tau), rnd.uniform(0.4, 1.7)
+        sphere(f"Foam{i}", rnd.uniform(0.55, 0.9), (math.cos(a) * r, -1.0 + math.sin(a) * r, 0.02), mat=foam,
+               scale=(1, 1, 0.22), segments=16, rings=6)
+    cyl("Puddle", 2.2, 0.06, (0, -1.0, 0.03), mat=foam, verts=32, bevel=0.02)
     cycle = 0.18
     keys = [[0, 0.02], [0.68, 0.02], [0.72, 1.1], [0.76, 1], [0.9, 1], [0.95, 0.02], [1, 0.02]]
     # The column's scale and the launch window share one clock cycle, so the spray and the push line up.
     spray = pivot("Spray", (0, -1.0, 0), anim=dict(type="scale", min=(1, 1, 0.0), max=(1, 1, 1), speed=cycle, curve=keys))
-    cyl("Column", 1.1, 9.0, (0, 0, 4.5), mat=foam, verts=20, radius2=1.6, parent=spray)
-    for i, (x, z) in enumerate([(0.6, 3.0), (-0.7, 5.5), (0.3, 8.0), (-0.2, 9.3)]):
-        sphere(f"Fizz{i}", 0.9 + 0.2 * i, (x, 0, z), mat="toon:#C8F0FF", parent=spray)
+    column = [(0.75, 0), (0.6, 2.0), (0.7, 4.5), (0.95, 7.0), (1.25, 8.6), (0.9, 9.3), (0, 9.5)]
+    lathe("Column", column, mat=foam, segments=20, parent=spray)
+    for i, (x, z, r) in enumerate([(0.75, 1.8, 0.35), (-0.8, 3.4, 0.45), (0.85, 5.0, 0.4), (-0.95, 6.6, 0.55),
+                                   (1.0, 8.0, 0.6), (-0.7, 9.0, 0.7), (0.3, 9.6, 0.65)]):
+        sphere(f"Fizz{i}", r, (x, 0.25 * (-1) ** i, z), mat="toon:#C8F0FF", segments=16, rings=8, parent=spray)
     blast = pivot("Blast", (0, -1.0, 0), timed=dict(speed=cycle, start=0.70, end=0.93))
     collider("Erupt", "box", (3.4, 3.4, 3.0), (0, 0, 1.5), parent=blast, trigger=True,
              zone={"type": "launch", "velocity": [0, 32, 0], "setVelocity": True, "cooldown": 1.5})
@@ -554,15 +676,20 @@ def mousetrap():
 
 
 def garden_rake():
-    green, wood = "toon:#3FA34D", "toon:#A0643C"
-    box("Head", (4.6, 0.45, 0.3), (0, 4.0, 0.2), mat=green, bevel=0.08)
-    for i in range(10):
-        x = -2.05 + i * 0.455
-        cyl(f"Tine{i}", 0.08, 0.9, (x, 4.0, 0.75), mat=METAL, verts=8, bevel=0)
+    green, wood, wood_dark = "toon:#3FA34D", "toon:#B5773F", "toon:#94592B"
+    box("Head", (4.6, 0.4, 0.3), (0, 4.0, 0.25), mat=green, bevel=0.1)
+    for i in range(12):
+        x = -2.15 + i * (4.3 / 11)
+        cyl(f"Tine{i}", 0.07, 0.75, (x, 4.0, 0.62), mat=METAL, verts=8, bevel=0)
+        sphere(f"TineTip{i}", 0.09, (x, 3.94, 1.0), mat=METAL, scale=(1, 1.6, 1), segments=8, rings=4)
     swing = pivot("Swing", (0, 3.75, 0.25), motion=dict(channel=0, type="rotation", axis="X", rest=0, active=-75,
                                                        inTime=0.12, holdTime=0.5, outTime=0.8, arm=True))
-    box("Handle", (0.35, 8.0, 0.35), (0, -4.0, 0), mat=wood, bevel=0.12, parent=swing)
-    box("Grip", (0.45, 1.2, 0.45), (0, -7.6, 0), mat=green, bevel=0.15, parent=swing)
+    cyl("Ferrule", 0.25, 0.9, (0, -0.45, 0.03), rot=(90, 0, 0), mat=METAL, verts=16, bevel=0.03, parent=swing)
+    cyl("Handle", 0.19, 7.0, (0, -4.4, 0.03), rot=(90, 0, 0), mat=wood, verts=16, bevel=0.03, parent=swing)
+    for k in range(4):
+        cyl(f"Grain{k}", 0.195, 0.06, (0, -2.4 - k * 1.3, 0.03), rot=(90, 0, 0), mat=wood_dark, verts=16, bevel=0, parent=swing)
+    cyl("Grip", 0.26, 1.3, (0, -7.6, 0.03), rot=(90, 0, 0), mat=green, verts=16, bevel=0.08, parent=swing)
+    sphere("GripCap", 0.27, (0, -8.25, 0.03), mat=green, scale=(1, 0.5, 1), segments=16, rings=8, parent=swing)
     collider("Smack", "box", (1.6, 8.0, 1.6), (0, -4.0, 0.3), parent=swing, trigger=True,
              zone={"type": "launch", "velocity": [0, 24, 0], "setVelocity": True, "cooldown": 1.5})
     collider("HeadCol", "box", (4.6, 0.45, 0.3), (0, 4.0, 0.2))
@@ -611,45 +738,62 @@ def magnifying_glass():
 
 
 def toilet():
-    porcelain, water, mat_blue = "toon:#F7F7FA", "toon:#5BC0FF", "toon:#7FD3FF"
-    cyl("Pedestal", 1.3, 1.5, (0, 0, 0.75), mat=porcelain, verts=32, radius2=1.0, bevel=0.15)
-    cyl("Bowl", 2.0, 0.9, (0, 0, 1.75), mat=porcelain, verts=40, radius2=2.2, bevel=0.15)
-    torus("Seat", 1.75, 0.3, (0, 0, 2.3), mat="primary", seg=40, ring=12)
-    cyl("Water", 1.55, 0.05, (0, 0, 2.23), mat=water, verts=40, bevel=0)
-    swirl = pivot("Swirl", (0, 0, 2.27), anim=dict(type="rotation", axis="Z", min=0, max=360, speed=0.25, curve="linear"))
+    porcelain, shade, water = "toon:#F7F7FA", "toon:#DADBE3", "toon:#5BC0FF"
+    oval = (1, 1.15, 1)
+    # Bowl and pedestal as one turned piece, slightly oval like the real thing.
+    lathe("Bowl", [(1.05, 0.0), (1.25, 0.08), (1.05, 0.3), (0.95, 0.9), (1.2, 1.35), (1.75, 1.75), (2.05, 2.05),
+                   (2.1, 2.2), (1.85, 2.24), (1.6, 2.05), (0, 1.95)], mat=porcelain, segments=40, scale=oval)
+    cyl("Water", 1.55, 0.04, (0, 0, 2.06), mat=water, verts=40, bevel=0)
+    torus("Seat", 1.8, 0.24, (0, 0, 2.38), mat="primary", seg=40, ring=12)
+    swirl = pivot("Swirl", (0, 0, 2.1), anim=dict(type="rotation", axis="Z", min=0, max=360, speed=0.25, curve="linear"))
     # Whole turns only, so snapping back to rest after the flush is invisible.
     flush = pivot("Flush", (0, 0, 0), parent=swirl, motion=dict(channel=0, type="rotation", axis="Z", rest=0, active=-1080,
                                                                  inTime=0.9, holdTime=0.0, outTime=0.01))
     for i in range(3):
         arm = pivot(f"SwirlArm{i}", rot=(0, 0, i * 120), parent=flush)
         box(f"Streak{i}", (0.2, 1.1, 0.03), (0.6, 0.3, 0), rot=(0, 0, 35), mat=WHITE, bevel=0, parent=arm)
-    lid = pivot("LidHinge", (0, 1.8, 2.35), rot=(-100, 0, 0))
-    cyl("Lid", 1.9, 0.18, (0, -1.9, 0.09), mat="primary", verts=40, bevel=0.06, parent=lid)
-    box("Tank", (3.4, 1.4, 2.6), (0, 2.6, 2.6), mat=porcelain, bevel=0.2)
-    box("TankLid", (3.6, 1.6, 0.25), (0, 2.6, 3.95), mat=porcelain, bevel=0.1)
-    cyl("Handle", 0.12, 0.8, (-1.3, 1.85, 3.4), rot=(0, 90, 0), mat=METAL, verts=10)
-    ramp = pivot("StepRamp", (0, -4.0, 1.15), rot=(30, 0, 0))
-    box("Mat", (2.8, 4.8, 0.25), mat=mat_blue, bevel=0.12, parent=ramp)
-    collider("RampCol", "box", (2.8, 4.8, 0.3), parent=ramp)
-    collider("PedestalCol", "box", (2.2, 2.2, 1.4), (0, 0, 0.7))
-    collider("TankCol", "box", (3.4, 1.4, 4.0), (0, 2.6, 2.0))
-    for i, (x, y) in enumerate([(-2.0, 0), (2.0, 0), (0, 1.6)]):
-        collider(f"RimCol{i}", "box", (0.5 if x else 3.6, 3.6 if x else 0.5, 0.8), (x, y, 1.9))
-    collider("Bowl", "box", (2.8, 2.8, 1.6), (0, 0, 2.2), trigger=True, zone={"type": "toilet", "delay": 0.35, "channel": 0})
+    # The tank sits just behind the bowl's rim (rim back edge y=2.42, tank front y=2.5), and the lid stands on the
+    # rim leaning 3 degrees back, so its back face just meets the tank lid's front edge instead of passing through.
+    lid = pivot("LidHinge", (0, 2.1, 2.42), rot=(-93, 0, 0))
+    lathe("Lid", [(0, 0), (1.85, 0), (1.95, 0.08), (1.85, 0.18), (0, 0.2)], (0, -1.95, 0), mat="primary", segments=40,
+          parent=lid)
+    tank_y = 3.2
+    rounded_rect("Tank", (3.4, 1.4), 0.35, 2.7, (0, tank_y, 1.3), mat=porcelain, bevel=0.12)
+    rounded_rect("TankLid", (3.6, 1.6), 0.4, 0.25, (0, tank_y, 4.0), mat=porcelain, bevel=0.08)
+    cyl("Handle", 0.1, 0.7, (-1.25, tank_y - 0.82, 3.55), rot=(0, 90, 0), mat=METAL, verts=12)
+    cyl("HandleBoss", 0.2, 0.08, (-1.25, tank_y - 0.73, 3.55), rot=(90, 0, 0), mat=METAL, verts=16, bevel=0.02)
+    box("Pipe", (0.5, 1.2, 0.5), (0, 2.2, 1.05), mat=shade, bevel=0.15)
+    collider("PedestalCol", "box", (2.4, 2.6, 1.5), (0, 0, 0.75))
+    collider("TankCol", "box", (3.4, 1.4, 4.0), (0, tank_y, 2.0))
+    for i, x in enumerate((-2.15, 2.15)):
+        collider(f"RimCol{i}", "box", (0.5, 4.2, 0.9), (x, 0, 1.95))
+    # No ramp of its own (build one with other cards). The flush zone covers the bowl from just above the road to
+    # well over the rim and reaches the tank's face, so driving into the front, landing in the bowl or hitting
+    # the tank all flush you.
+    collider("Bowl", "box", (4.4, 4.4, 5.5), (0, 0.3, 3.25), trigger=True, zone={"type": "toilet", "delay": 0.3, "channel": 0})
     return dict(name="The Toilet", rarity="Unique", full_art=True, partner="SewerExit",
-                description=f"Flush and reflect. Place its {kw('Sewer Exit', PURPLE)} anywhere: vehicles that fall in come out there.")
+                description=f"Flush and reflect. Place its {kw('Sewer Exit', PURPLE)} anywhere: vehicles that drive in come out there.")
 
 
 def sewer_exit():
-    pipe, rust = "toon:#3FA34D", "toon:#2E7D3A"
-    pipe_pivot = pivot("Pipe", (0, 0, 1.9), rot=(-90, 0, 0))
-    cyl("Tube", 1.6, 3.4, mat=pipe, verts=32, bevel=0.1, parent=pipe_pivot)
-    torus("MouthRing", 1.6, 0.25, (0, 0, 1.7), mat=rust, parent=pipe_pivot, seg=32, ring=10)
-    cyl("Dark", 1.35, 0.05, (0, 0, 1.68), mat="toon:#14201A", verts=32, bevel=0, parent=pipe_pivot)
-    for y in (-1.0, 1.0):
-        box(f"Support{y}", (2.6, 0.5, 0.6), (0, y, 0.3), mat="toon:#B9B9C4", bevel=0.08)
-    sphere("Drip", 0.35, (0, 1.9, 0.2), mat="toon:#5BC0FF", scale=(1.6, 1.2, 0.3))
-    collider("PipeCol", "box", (3.2, 3.4, 3.2), (0, 0, 1.9))
+    concrete, dark, pipe = "toon:#B9B9C4", "toon:#14201A", "toon:#4F8F5A"
+    # Concrete headwall with the pipe mouth facing -Y (the front), where flushed cars shoot out.
+    rounded_rect("Wall", (4.6, 1.2), 0.25, 4.0, (0, 0.9, 0), mat=concrete, bevel=0.1)
+    box("WallCap", (4.9, 1.5, 0.3), (0, 0.9, 4.1), mat=concrete, bevel=0.08)
+    mouth = pivot("Pipe", (0, 0, 1.9), rot=(90, 0, 0))
+    # A hollow pipe (no end caps) with a dark plate deep inside: nothing shares a depth with anything else,
+    # so the opening can't flicker.
+    lathe("Tube", [(1.55, -0.3), (1.55, 1.4), (1.75, 1.45), (1.75, 1.75), (1.35, 1.75), (1.35, -0.3)],
+          mat=pipe, segments=32, parent=mouth, closed=True)
+    cyl("Dark", 1.37, 0.06, (0, 0, 0.0), mat=dark, verts=32, bevel=0, parent=mouth)
+    for i in range(8):
+        a = math.radians(i * 45 + 22.5)
+        sphere(f"Rivet{i}", 0.09, (1.62 * math.cos(a), 1.62 * math.sin(a), 1.76), mat=METAL, scale=(1, 1, 0.6),
+               segments=8, rings=4, parent=mouth)
+    for k, x in enumerate((-0.75, 0.0, 0.75)):
+        box(f"Grate{k}", (0.1, 2.5, 0.1), (x, 0, 1.64), mat=METAL, bevel=0, parent=mouth)
+    collider("PipeCol", "box", (3.6, 2.0, 3.6), (0, -0.5, 1.9))
+    collider("WallCol", "box", (4.6, 1.2, 4.2), (0, 0.9, 2.1))
     return dict(name="The Sewer Exit", rarity="Unique", partner_only=True,
                 description="Where the Toilet sends you. Flushed vehicles shoot out of here.")
 
@@ -864,6 +1008,8 @@ def reverse_card_scene(card_id="ReverseCard"):
 def toilet_card_extras():
     """Render-only props for the Toilet's full-art card: a car diving into the bowl and a splash.
     Call after export_obstacle (they are never exported); returns the names to hide on the card render."""
+    # Into the Toilet's collection whatever was built last, so the card render (and its clean-up) finds them.
+    globals()["_current"] = bpy.data.collections["SS_Toilet"]
     car = pivot("CardCar", (0.1, -0.2, 3.3), rot=(-62, 0, 24))
     box("CardCarBody", (1.2, 2.0, 0.55), mat="toon:#E3263F", bevel=0.18, parent=car)
     box("CardCarCabin", (1.0, 0.95, 0.5), (0, -0.2, 0.5), mat="toon:#BFE6FF", bevel=0.15, parent=car)
@@ -876,7 +1022,287 @@ def toilet_card_extras():
         r = rnd.uniform(1.5, 2.4)
         sphere(f"CardSplash{i}", rnd.uniform(0.09, 0.22), (math.cos(a) * r, math.sin(a) * r * 0.85, 2.4 + rnd.uniform(0, 1.4)),
                mat="toon:#7FD3FF", scale=(1, 1, 1.5))
-    return ["StepRamp", "Mat"]
+    return []
+
+
+# ---------------------------------------------------------------- batch 5 (0.2.0)
+
+def baby_oil():
+    plastic, cap, label, band = "toon:#FFD3E3", "toon:#F06BA8", WHITE, "toon:#F06BA8"
+    deep, oil, light, ripple = "toon:#D48A2C", "toon:#EBAA44", "toon:#F7CB6E", "toon:#FADB94"
+    shine = "glow:#FFF8E6"   # unlit, so the highlights stay bright like a wet reflection
+    k = 1.45   # bottle scale
+    # The bottle lies tipped forward, nose down, glugging oil onto the road. Oval cross-section like the real thing.
+    bottle = pivot("Bottle", (0.9, 4.6, 0.75 * k), rot=(96, 0, -18))
+    oval = (1, 0.62, 1)
+    prof = [(0, 0), (0.9, 0), (1.08, 0.12), (1.12, 0.5), (1.1, 2.6), (1.0, 3.1), (0.7, 3.5), (0.42, 3.7), (0.42, 3.85), (0, 3.85)]
+    lathe("Body", [(r * k, z * k) for r, z in prof], mat=plastic, segments=36, scale=oval, parent=bottle)
+    lathe("Label", [(1.13 * k, 0.75 * k), (1.13 * k, 2.45 * k)], mat=label, segments=36, scale=oval, parent=bottle)
+    lathe("Band", [(1.14 * k, 1.95 * k), (1.14 * k, 2.25 * k)], mat=band, segments=36, scale=oval, parent=bottle)
+    lathe("Cap", [(0, 3.8 * k), (0.5 * k, 3.8 * k), (0.52 * k, 4.3 * k), (0.38 * k, 4.45 * k), (0, 4.45 * k)], mat=cap,
+          segments=24, parent=bottle)
+    box("Spout", (0.4, 0.18, 0.5), (0, -0.42, 4.6 * k), mat=cap, bevel=0.05, parent=bottle)
+    for i in range(3):
+        sphere(f"Bubble{i}", (0.13 - i * 0.03) * k, ((0.4 - i * 0.25) * k, 0.7 * k, (1.3 + i * 0.4) * k), mat=WHITE,
+               segments=10, rings=6, parent=bottle)
+    # Oil glugging out of the spout: a wobbling blob where it lands, with ripples spreading out.
+    nose = Vector((0.9, 4.6, 0.75 * k)) + Vector((-0.307, -0.946, -0.1045)) * (4.5 * k)
+    glug = pivot("Glug", (nose.x, nose.y, 0.0), anim=dict(type="scale", min=(1, 1, 0.8), max=(1.12, 1.12, 1.2), speed=1.3,
+                                                         wrap="pingpong", curve="ease"))
+    lathe("GlugBlob", [(0, 0), (0.65, 0.02), (0.45, 0.12), (0.28, 0.26), (0.12, 0.38), (0, 0.42)], mat=light, segments=20,
+          parent=glug)
+    sphere("GlugShine", 0.12, (-0.15, -0.2, 0.3), mat=shine, scale=(1, 0.6, 0.6), segments=10, rings=6, parent=glug)
+    # The slick: thin, irregular, darker at the edge and lighter towards the middle, with bright streaks.
+    # `size` scales the whole spill around its centre `cy`; the colliders below use the same numbers.
+    size, cy = 1.4, -5.0
+    rnd = random.Random(21)
+    puddle("Slick", 4.9 * size, 4.4 * size, 0.03, (0, cy, 0), mat=deep, wobble=0.2, seed=4)
+    puddle("SlickMid", 4.3 * size, 3.8 * size, 0.036, (0.1, cy + 0.1, 0), mat=oil, wobble=0.2, seed=4)
+    puddle("SlickPool", 2.9 * size, 2.4 * size, 0.042, (0.4 * size, cy + 0.4 * size, 0), rot=(0, 0, 20), mat=light,
+           wobble=0.25, seed=9)
+    puddle("Trail", 1.3, 2.4, 0.035, (nose.x + 0.4, nose.y - 1.2, 0), rot=(0, 0, 15), mat=oil, wobble=0.15, seed=2)
+    # Reflections: long glints in pairs, like a window caught in the oil.
+    for i in range(6):
+        x, y = rnd.uniform(-2.4, 2.4) * size, cy + rnd.uniform(-2.2, 2.0) * size
+        turn = rnd.uniform(25, 35)
+        for j, (length, off) in enumerate([(rnd.uniform(0.9, 1.6), 0.0), (rnd.uniform(0.4, 0.8), 0.32)]):
+            sphere(f"Glint{i}_{j}", 1.0, (x - off * 0.5, y + off, 0.05), mat=shine, scale=(length, 0.09, 0.012),
+                   rot=(0, 0, turn), segments=14, rings=4)
+    for i in range(10):
+        x, y = rnd.uniform(-2.8, 2.8) * size, cy + rnd.uniform(-2.6, 2.4) * size
+        sphere(f"Fleck{i}", 1.0, (x, y, 0.048), mat=shine, scale=(rnd.uniform(0.08, 0.16),) * 2 + (0.01,), segments=10, rings=4)
+    # Ripples spreading from where the oil lands and across the pool (each ring loops at its own pace).
+    for i, (cx, cyy, speed) in enumerate([(nose.x, nose.y, 0.55), (nose.x, nose.y, 0.42), (0.6, cy + 0.6, 0.3),
+                                          (-1.6, cy - 1.4, 0.24)]):
+        ring = pivot(f"Ripple{i}", (cx, cyy, 0.05), anim=dict(type="scale", min=(0.2, 0.2, 1), max=(1.0, 1.0, 1), speed=speed,
+                                                              curve="linear"))
+        torus(f"RippleRing{i}", 1.6 if i < 2 else 2.4, 0.035, mat=ripple, seg=40, ring=4, parent=ring)
+    for i in range(9):
+        a = rnd.uniform(0, math.tau)
+        puddle(f"Drop{i}", rnd.uniform(0.25, 0.45), rnd.uniform(0.2, 0.4), 0.03,
+               (math.cos(a) * 5.6 * size, cy + math.sin(a) * 5.0 * size, 0), mat=oil, wobble=0.12, seed=30 + i, segments=24)
+    centre = Vector((0.9, 4.6, 0.75 * k)) + Vector((-0.307, -0.946, -0.1045)) * (2.2 * k)
+    collider("BottleCol", "box", (2.2 * k, 4.6 * k, 1.4 * k), (centre.x, centre.y, 0.7 * k), rot=(0, 0, -18))
+    # Thin solid slab carrying the oil surface: the car reads its grip from whatever it's standing on.
+    collider("SlickCol", "box", (9.2 * size, 8.6 * size, 0.1), (0, cy, 0.0), zone={"type": "oil", "grip": 0.06, "steer": 0.35, "engine": 0.6})
+    # Droplets kicked up by every car on the slick (visual only, on every machine).
+    collider("SplashCol", "box", (9.6 * size, 9.0 * size, 3.0), (0, cy, 1.5), trigger=True,
+             zone={"type": "splash", "colorA": oil, "colorB": shine, "surfaceHeight": 0.05})
+    return dict(name="The Baby Oil", description=f"Gentle on skin. Leaves a slick with {kw('no grip', ORANGE)}: good luck steering.",
+                rarity="Uncommon")
+
+
+def vacuum():
+    shell, dark, metal, hose, gloom = "primary", "toon:#2A2D35", METAL, "toon:#3A3F4B", "toon:#0C0D10"
+    # Canister at the back, shuddering when it catches something.
+    can = pivot("Canister", (0, 5.0, 0))
+    can.scale = (1.35, 1.35, 1.35)   # sized to match the big floor nozzle
+    shudder = pivot("Shudder", parent=can, motion=dict(channel=0, type="scale", rest=(1, 1, 1), active=(1.08, 1.08, 1.12),
+                                                       inTime=0.15, holdTime=0.55, outTime=0.25))
+    lathe("Body", [(0, 0.25), (1.75, 0.25), (1.95, 0.55), (2.0, 1.6), (1.85, 2.3), (1.4, 2.65), (0, 2.75)], mat=shell,
+          segments=40, parent=shudder)
+    torus("Bumper", 1.98, 0.16, (0, 0, 0.5), mat=dark, seg=40, ring=8, parent=shudder)
+    lathe("Lid", [(0, 2.6), (1.45, 2.6), (1.6, 2.72), (1.3, 3.0), (0, 3.05)], mat=dark, segments=40, parent=shudder)
+    torus("CarryHandle", 0.75, 0.13, (0, 0, 3.0), rot=(90, 0, 0), mat=dark, seg=24, ring=8, parent=shudder)
+    cyl("PowerButton", 0.22, 0.12, (0.95, -0.6, 2.82), rot=(-20, 0, 0), mat="toon:#E3263F", verts=16, bevel=0.03, parent=shudder)
+    for k in range(5):
+        box(f"Vent{k}", (0.9, 0.08, 0.1), (0, 1.97, 1.0 + k * 0.22), mat=dark, bevel=0.02, parent=shudder)
+    for x in (-1.2, 1.2):
+        cyl(f"Wheel{x}", 0.42, 0.3, (x, 0.6, 0.42), rot=(0, 90, 0), mat=dark, verts=20, bevel=0.06, parent=can)
+    cyl("Inlet", 0.42, 0.5, (0, -1.95, 1.2), rot=(90, 0, 0), mat=dark, verts=20, bevel=0.05, parent=can)
+    # Ribbed hose looping from the canister inlet up and over to the wand.
+    p0, p1, p2 = Vector((0, 2.4, 1.62)), Vector((0.6, 1.1, 6.2)), Vector((0, -0.6, 4.8))
+    for k in range(24):
+        t = k / 23
+        p = (1 - t) ** 2 * p0 + 2 * (1 - t) * t * p1 + t * t * p2
+        d = (2 * (1 - t) * (p1 - p0) + 2 * t * (p2 - p1)).normalized()
+        rot = d.to_track_quat("Z", "Y").to_euler()
+        torus(f"HoseRib{k}", 0.34, 0.11, tuple(p), rot=tuple(math.degrees(a) for a in rot), mat=hose, seg=16, ring=6)
+    # Metal wand down to the floor nozzle's roof.
+    wand_top, wand_bottom = Vector((0, -0.6, 4.8)), Vector((0, -3.4, 2.75))
+    mid = (wand_top + wand_bottom) / 2
+    dirn = (wand_top - wand_bottom)
+    rot = dirn.normalized().to_track_quat("Z", "Y").to_euler()
+    cyl("Wand", 0.24, dirn.length, tuple(mid), rot=tuple(math.degrees(a) for a in rot), mat=metal, verts=16, bevel=0.02)
+    cyl("Grip", 0.32, 0.8, tuple(wand_top), rot=tuple(math.degrees(a) for a in rot), mat=dark, verts=16, bevel=0.06)
+    cyl("Neck", 0.5, 0.5, (0, -3.4, 2.8), mat=dark, verts=20, bevel=0.06)
+    # The floor nozzle: big enough to swallow a car. Open at the front (-Y) and underneath, with a dark chamber
+    # inside: roof, two cheeks and a back. Mouth plane y=-6.0, chamber back y=-3.2, roof underside z=2.2.
+    hx, front, back, roof = 3.2, -6.0, -2.8, 2.2
+    depth, cy = back - front, (front + back) / 2
+    rounded_rect("Roof", (2 * hx, depth), 0.8, 0.5, (0, cy, roof), mat=shell, bevel=0.14)
+    rounded_rect("RoofStripe", (4.2, 0.5), 0.2, 0.05, (0, cy - 0.6, roof + 0.5), mat="secondary", bevel=0.02)
+    for side in (-1, 1):
+        box(f"Cheek{side}", (0.6, depth, roof), (side * (hx - 0.3), cy, roof / 2), mat=shell, bevel=0.14)
+        box(f"LipSide{side}", (0.34, 0.34, roof + 0.1), (side * (hx - 0.25), front - 0.05, roof / 2), mat=dark, bevel=0.1)
+        cyl(f"Wheel{side}", 0.38, 0.3, (side * (hx - 0.2), back - 0.25, 0.38), rot=(0, 90, 0), mat=dark, verts=20, bevel=0.06)
+    box("Back", (2 * hx - 1.2, 0.4, roof), (0, back - 0.2, roof / 2), mat=shell, bevel=0.1)
+    box("LipTop", (2 * hx + 0.1, 0.34, 0.34), (0, front - 0.05, roof + 0.05), mat=dark, bevel=0.1)
+    # Dark lining just inside the walls (never flush with them, so nothing flickers).
+    inner = hx - 0.62
+    box("ThroatRoof", (2 * inner, depth - 0.45, 0.04), (0, cy + 0.2, roof - 0.05), mat=gloom, bevel=0)
+    box("ThroatBack", (2 * inner, 0.04, roof - 0.1), (0, back - 0.45, roof / 2), mat=gloom, bevel=0)
+    for side in (-1, 1):
+        box(f"ThroatSide{side}", (0.04, depth - 0.45, roof - 0.1), (side * inner, cy + 0.2, roof / 2), mat=gloom, bevel=0)
+    box("ThroatFloor", (2 * inner, depth - 0.45, 0.02), (0, cy + 0.2, 0.012), mat=gloom, bevel=0)
+    # Brush bristles hanging from the top lip.
+    for k in range(22):
+        x = -inner + 0.15 + k * (2 * inner - 0.3) / 21
+        box(f"Bristle{k}", (0.1, 0.1, 0.32), (x, front + 0.1, roof - 0.18), mat="toon:#F2C14E", bevel=0)
+    # Suction lines being drawn into the mouth (they never collide).
+    for k in range(6):
+        x = -2.0 + k * 0.8
+        flow = pivot(f"Flow{k}", (x, -11.0, 0.5 + 0.35 * (k % 3)), anim=dict(type="position", min=(0, -5.0, 0), max=(0, 4.6, 0),
+                                                                               speed=0.8 + 0.11 * k, curve="linear"))
+        sphere(f"Streak{k}", 1.0, mat=WHITE, scale=(0.08, 0.9, 0.08), segments=10, rings=6, parent=flow)
+    collider("CanisterCol", "box", (5.4, 5.4, 4.0), (0, 5.0, 2.0))
+    collider("RoofCol", "box", (2 * hx, depth, 0.5), (0, cy, roof + 0.25))
+    for side in (-1, 1):
+        collider(f"CheekCol{side}", "box", (0.6, depth, roof), (side * (hx - 0.3), cy, roof / 2))
+    collider("BackCol", "box", (2 * hx, 0.4, roof), (0, back - 0.2, roof / 2))
+    # Suction from 14 m out in front, through the mouth, to the back of the chamber. Unity space, node-local:
+    # `mouth` is the chamber's middle (0, 0.6, -4.0) as seen from this node at (0, 1.7, -11.5). Inside the mouth
+    # (escapeDistance) there's no escape; the catch comes once the car is right inside (catchDistance).
+    collider("Suction", "box", (8.0, 17.4, 3.4), (0, -11.5, 1.7), trigger=True,
+             zone={"type": "vacuum", "mouth": [0, -1.1, 7.5], "pull": 28, "pullSpeedFar": 5, "pullSpeed": 13,
+                   "reach": 16, "catchDistance": 1.0, "escapeDistance": 2.1, "escapeFactor": 0.55,
+                   "holdTime": 1.0, "velocity": [0, 5, -42], "cooldown": 2.0, "channel": 0})
+    return dict(name="The Vacuum", description=f"Sucks. {kw('Pulls', BLUE)} vehicles in, then {kw('spits them out', GREEN)} at full blast.",
+                rarity="Rare")
+
+
+def wind_tunnel():
+    shell, rib, floor, stripe, dark = "toon:#D9DEE6", "toon:#F2C14E", ASPHALT, LINE_YELLOW, "toon:#2A2D35"
+    length, r_in, r_out, wall = 26.0, 4.2, 4.6, 1.5
+    half = length / 2
+    # Straight side walls topped by a half-round roof; arc_slab sweeps an arch, extruded along the tunnel.
+    for side in (-1, 1):
+        box(f"Wall{side}", (r_out - r_in, length, wall), (side * (r_in + r_out) / 2, 0, wall / 2), mat=shell, bevel=0.04)
+    # arc_slab extrudes down its local Z, which the 90 degree turn points along +Y: start at the front.
+    roof = arc_slab("Roof", r_in, r_out, 180, length, (0, -half, wall), mat=shell, segments=32, bevel=0.04)
+    roof.rotation_euler = (math.radians(90), 0, 0)
+    for k, y in enumerate((-half + 0.4, -half / 3, half / 3, half - 0.4)):
+        ring = arc_slab(f"Rib{k}", r_out - 0.05, r_out + 0.3, 180, 0.8, (0, y - 0.4, wall), mat=rib, segments=32, bevel=0.05)
+        ring.rotation_euler = (math.radians(90), 0, 0)
+        for side in (-1, 1):
+            box(f"RibLeg{k}{side}", (0.35, 0.8, wall), (side * (r_out + 0.12), y, wall / 2), mat=rib, bevel=0.04)
+    # Hazard chevrons on the entrance rib.
+    for k in range(7):
+        a = math.radians(12 + k * 26)
+        box(f"Hazard{k}", (0.5, 0.06, 0.32), ((r_out + 0.15) * math.cos(a), -half - 0.03, wall + (r_out + 0.15) * math.sin(a)),
+            rot=(0, -math.degrees(a) + 90, 0), mat=dark, bevel=0)
+    box("Floor", (2 * r_in, length, 0.04), (0, 0, 0.02), mat=floor, bevel=0)
+    for k in range(6):
+        y = -half + 3 + k * 4.2
+        prism(f"Arrow{k}", 1.6, 0.04, 1.2, (0, y, 0.045), rot=(-90, 0, 0), mat=stripe, bevel=0)
+    # Two big wall fans near the exit, blowing back down the tunnel.
+    for side in (-1, 1):
+        x = side * (r_in - 1.25)
+        lathe(f"FanHousing{side}", [(1.1, -0.6), (1.2, -0.5), (1.2, 0.5), (1.0, 0.6), (1.0, -0.45)],
+              (x, half - 2.2, 2.6), rot=(90, 0, 0), mat=dark, segments=32, closed=True)
+        spin = pivot(f"Fan{side}", (x, half - 2.2, 2.6), rot=(90, 0, 0),
+                     anim=dict(type="rotation", axis="Z", min=0, max=360, speed=1.6, curve="linear"))
+        for b in range(5):
+            blade = pivot(f"FanBlade{side}_{b}", rot=(0, 0, b * 72), parent=spin)
+            box(f"Blade{side}_{b}", (0.42, 0.85, 0.06), (0, 0.55, 0), rot=(0, 25, 0), mat=METAL, bevel=0.03, parent=blade)
+        sphere(f"FanHub{side}", 0.3, (x, half - 2.5, 2.6), mat=rib, scale=(1, 0.7, 1), segments=16, rings=8)
+        for g in range(4):
+            torus(f"FanGuard{side}_{g}", 0.3 + g * 0.26, 0.03, (x, half - 2.85, 2.6), rot=(90, 0, 0), mat=METAL, seg=32, ring=4)
+    # Gusts streaming back towards the entrance (never collide).
+    for k in range(10):
+        x = -3.0 + (k % 5) * 1.5
+        z = 1.0 + (k // 5) * 2.0 + 0.3 * (k % 2)
+        gust = pivot(f"Gust{k}", (x, 0, z), anim=dict(type="position", min=(0, half - 1, 0), max=(0, -half - 2, 0),
+                                                      speed=0.55 + 0.07 * k, curve="linear"))
+        sphere(f"GustStreak{k}", 1.0, mat=WHITE, scale=(0.06, 1.4, 0.06), segments=10, rings=6, parent=gust)
+    for side in (-1, 1):
+        collider(f"FanCol{side}", "box", (2.4, 1.3, 2.4), (side * (r_in - 1.25), half - 2.2, 2.6))
+    # Colliders: walls and a ring of slabs following the arch.
+    for side in (-1, 1):
+        collider(f"WallCol{side}", "box", (r_out - r_in + 0.2, length, wall), (side * (r_in + r_out) / 2, 0, wall / 2))
+    r = (r_in + r_out) / 2
+    for k in range(6):
+        a = 15 + k * 30
+        ar = math.radians(a)
+        chord = 2 * r * math.sin(math.radians(15)) + 0.3
+        collider(f"ArchCol{k}", "box", (chord, length, 0.5), (r * math.cos(ar), 0, wall + r * math.sin(ar)), rot=(0, -(a + 90), 0))
+    # The wind itself. Unity space: the way through is +Z (Blender +Y), so cars enter at the front (-Y).
+    collider("Wind", "box", (2 * r_in, length, wall + r_in - 0.3), (0, 0, (wall + r_in - 0.3) / 2), trigger=True,
+             zone={"type": "wind", "direction": [0, 0, 1], "wind": 45, "passSpeed": 30})
+    return dict(name="The Wind Tunnel", description=f"Floor it. Too slow and the fans {kw('blow you back out', BLUE)}.",
+                rarity="Rare")
+
+
+def speed_bump():
+    yellow, black, white, red = "toon:#F2C14E", "toon:#22242A", WHITE, "toon:#E3263F"
+    width, half_depth, height = 9.0, 0.85, 0.34
+    # Striped hump: one loft per stripe so the stripes follow the curve; the outer ends round off.
+    n = 9
+    for i in range(n):
+        x0, x1 = -width / 2 + i * width / n, -width / 2 + (i + 1) * width / n
+        stations = [(x0, half_depth, height, 0), (x1, half_depth, height, 0)]
+        if i == 0:
+            stations = [(x0 - 0.2, 0, 0, 0), (x0 - 0.12, half_depth * 0.7, height * 0.7, 0)] + stations
+        if i == n - 1:
+            stations = stations + [(x1 + 0.12, half_depth * 0.7, height * 0.7, 0), (x1 + 0.2, 0, 0, 0)]
+        loft(f"Stripe{i}", stations, rot=(0, 0, 0), mat=yellow if i % 2 == 0 else black, segments=24, flat_bottom=1.0)
+    for i in range(n - 1):
+        x = -width / 2 + (i + 1) * width / n
+        box(f"CatsEye{i}", (0.16, 0.22, 0.08), (x, -0.25, height - 0.02), rot=(18, 0, 0), mat=white, bevel=0.02)
+    # Speed limit sign and a speed camera on a post beside the road.
+    post = pivot("Post", (width / 2 + 1.3, 0.4, 0))
+    cyl("Pole", 0.12, 4.2, (0, 0, 2.1), mat=METAL, verts=12, bevel=0.02, parent=post)
+    cyl("SignBack", 0.95, 0.08, (0, -0.1, 3.6), rot=(90, 0, 0), mat=white, verts=40, bevel=0.02, parent=post)
+    torus("SignRing", 0.82, 0.11, (0, -0.16, 3.6), rot=(90, 0, 0), mat=red, seg=40, ring=8, parent=post)
+    digits("Limit", "20", 0.75, (0, -0.17, 3.6), mat=black, parent=post)
+    rounded_rect("Camera", (0.7, 1.1), 0.12, 0.7, (0, 0.15, 2.0), mat=yellow, bevel=0.06, parent=post)
+    cyl("Lens", 0.2, 0.12, (0, -0.42, 2.38), rot=(90, 0, 0), mat=black, verts=20, bevel=0.03, parent=post)
+    flash = pivot("Flash", (0, -0.5, 2.38), parent=post, motion=dict(channel=0, type="scale", rest=(0.01, 0.01, 0.01),
+                                                                     active=(1, 1, 1), inTime=0.05, holdTime=0.15, outTime=0.3))
+    sphere("FlashGlow", 0.55, mat="glow:#FFFFFF", segments=16, rings=8, parent=flash)
+    # A shallow tent of colliders over the hump, and the speed check above it.
+    for side in (-1, 1):
+        collider(f"Slope{side}", "box", (width, half_depth + 0.1, 0.16), (0, side * half_depth / 2, height / 2 - 0.08),
+                 rot=(-side * math.degrees(math.atan2(height, half_depth)), 0, 0))
+    collider("PostCol", "box", (0.4, 0.4, 4.2), (width / 2 + 1.3, 0.4, 2.1))
+    collider("Check", "box", (width, 2.0, 2.6), (0, 0, 1.3), trigger=True,
+             zone={"type": "speedbump", "minSpeed": 20, "up": 22, "keep": 0.9, "cooldown": 1.0, "channel": 0})
+    return dict(name="The Speed Bump", description=f"Slow down. Cross it too fast and it {kw('launches', GREEN)} you.",
+                rarity="Common")
+
+
+def pinball_flipper():
+    bat, rubber, inset, chrome, plate = WHITE, "toon:#E3263F", "primary", METAL, "toon:#1F2A6B"
+    length, r1, r2, height = 7.2, 1.0, 0.45, 1.1
+    # Playfield patch under it, with rollover lights (flat, never collides).
+    rounded_rect("Playfield", (11.0, 7.6), 1.2, 0.05, (3.0, 0.3, 0), mat=plate, bevel=0.02)
+    for i, (x, y) in enumerate([(2.0, 2.6), (3.6, 2.9), (5.2, 2.6), (6.8, 1.9)]):
+        cyl(f"Light{i}", 0.3, 0.04, (x, y, 0.06), mat="glow:#FFD84A" if i % 2 else "glow:#FF5AA8", verts=20, bevel=0)
+    # Inlane guide rail behind the pivot.
+    for k in range(9):
+        a = math.radians(110 + k * 12)
+        cyl(f"Rail{k}", 0.1, 0.6, (2.2 * math.cos(a), 2.2 * math.sin(a) + 0.2, 0.3), mat=chrome, verts=10, bevel=0)
+        sphere(f"RailKnob{k}", 0.16, (2.2 * math.cos(a), 2.2 * math.sin(a) + 0.2, 0.65), mat=rubber, segments=12, rings=6)
+    # The flipper rests angled down and swings up 60 degrees when something touches it.
+    node = pivot("Flipper", rot=(0, 0, -25))
+    swing = pivot("BatSwing", parent=node, motion=dict(channel=0, type="rotation", axis="Z", rest=0, active=60,
+                                                     inTime=0.09, holdTime=0.35, outTime=0.45))
+    taper_capsule("Bat", r1, r2, length, height, (0, 0, 0.08), mat=bat, bevel=0.12, parent=swing)
+    taper_capsule("Rubber", r1 + 0.07, r2 + 0.07, length, 0.36, (0, 0, 0.45), mat=rubber, bevel=0.1, parent=swing)
+    taper_capsule("Inset", r1 * 0.55, r2 * 0.5, length - 1.4, 0.05, (0.6, 0, height + 0.08), mat=inset, bevel=0.02, parent=swing)
+    lathe("PivotCap", [(0, 1.2), (0.55, 1.2), (0.6, 1.28), (0.42, 1.45), (0, 1.48)], mat=chrome, segments=24, parent=swing)
+    collider("BatCol", "box", (length + 0.4, 1.6, height), (length / 2 - 0.2, 0, height / 2 + 0.08), parent=swing)
+    # The kick: same swing, but its launch trigger only lives mid-swing. Launch is perpendicular to the bat
+    # (Blender +Y in the bat's own frame = Unity forward), with some lift.
+    kick = pivot("Kick", parent=node, motion=dict(channel=0, type="rotation", axis="Z", rest=0, active=60,
+                                                   inTime=0.09, holdTime=0.35, outTime=0.45, arm=True))
+    collider("Flip", "box", (length + 0.6, 3.2, 2.4), (length / 2, 1.2, 1.2), parent=kick, trigger=True,
+             zone={"type": "launch", "velocity": [0, 12, 34], "setVelocity": True, "cooldown": 1.0})
+    collider("Touch", "box", (length + 1.0, 4.4, 2.0), (length / 2, 0.8, 1.0), parent=node, trigger=True,
+             zone={"type": "plate", "channel": 0, "cooldown": 1.2})
+    collider("PostCol", "box", (2.0, 2.0, 1.4), (0, 0, 0.7))
+    return dict(name="The Pinball Flipper", description=f"Tilt! Touch it and it {kw('flips', GREEN)} you back onto the track. Or off it.",
+                rarity="Rare")
 
 
 BUILDERS = {
@@ -921,6 +1347,11 @@ BUILDERS = {
     "ShockMinefield": shock_minefield,
     "GrenadeShower": grenade_shower,
     "ReverseRoad": reverse_road,
+    "BabyOil": baby_oil,
+    "Vacuum": vacuum,
+    "WindTunnel": wind_tunnel,
+    "SpeedBump": speed_bump,
+    "PinballFlipper": pinball_flipper,
 }
 
 

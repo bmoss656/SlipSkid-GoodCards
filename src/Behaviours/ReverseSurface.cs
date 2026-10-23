@@ -1,8 +1,11 @@
+using System;
 using System.Linq;
 using HarmonyLib;
+using Obstacles.ObstacleGameModifiers;
 using Player;
 using UnityEngine;
 using World;
+using Object = UnityEngine.Object;
 
 namespace SlipSkid.CustomContent;
 
@@ -75,10 +78,32 @@ internal static class ReverseSurface
 [HarmonyPatch(typeof(SurfaceManager), "Awake")]
 internal static class SurfaceManagerAwakePatch
 {
-    private static void Postfix(SurfaceManager __instance)
+    [HarmonyPriority(Priority.First)]
+    private static void Postfix(SurfaceManager __instance) => Guard.Run("Surfaces", () =>
     {
         if (SurfaceManager.instance == __instance)
             ReverseSurface.Register(__instance);
+    });
+}
+
+// Lobby-wide "turn every road into X" modifiers list each vanilla surface they convert, so Reverse roads
+// would survive them. When every swap goes to the same surface, convert Reverse too (EvenMoreCards does the
+// same for its own surfaces; the checks keep the two from adding duplicates).
+[HarmonyPatch(typeof(ObstacleGameModifierSurfacesSwap), nameof(ObstacleGameModifierSurfacesSwap.ApplyModifier))]
+internal static class ReverseSurfacesSwapPatch
+{
+    private static void Prefix(ObstacleGameModifierSurfacesSwap __instance) => Guard.Run("Surfaces", () => AddReverse(__instance));
+
+    private static void AddReverse(ObstacleGameModifierSurfacesSwap __instance)
+    {
+        var swaps = __instance.surfaceSwaps;
+        var reverse = ReverseSurface.Instance;
+        if (!reverse || swaps == null || swaps.Count == 0)
+            return;
+        var to = swaps[0].to;
+        if (!to || to == reverse || swaps.Any(s => s.to != to) || swaps.Any(s => s.from == reverse))
+            return;
+        swaps.Add(new ObstacleGameModifierSurfacesSwap.SurfaceSwapTuple { from = reverse, to = to });
     }
 }
 
@@ -87,8 +112,15 @@ internal static class ReverseSteerPatch
 {
     private static void Postfix(SphereCarController __instance, ref float __result)
     {
-        if (ReverseSurface.IsReversed(__instance))
-            __result = -__result;
+        try
+        {
+            if (ReverseSurface.IsReversed(__instance))
+                __result = -__result;
+        }
+        catch (Exception e)
+        {
+            Guard.Report("ReverseSteer", e);
+        }
     }
 }
 
@@ -97,7 +129,14 @@ internal static class ReverseAirSteerPatch
 {
     private static void Postfix(SphereCarController __instance, ref float __result)
     {
-        if (ReverseSurface.IsReversed(__instance))
-            __result = -__result;
+        try
+        {
+            if (ReverseSurface.IsReversed(__instance))
+                __result = -__result;
+        }
+        catch (Exception e)
+        {
+            Guard.Report("ReverseSteer", e);
+        }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using BepInEx.Configuration;
 using Obstacles;
@@ -11,7 +12,8 @@ namespace SlipSkid.CustomContent;
 internal static class CardRegistry
 {
     // APPEND-ONLY. A card's position here is its slot, which travels over the network inside
-    // the spawn marker, and its catalog index follows this order. Never reorder or remove.
+    // the spawn marker, and its catalog index follows this order. Never reorder or remove:
+    // to take a card out of the game, mark it `retired: true` instead.
     internal static readonly CustomObstacle[] Entries =
     {
         new BumperPillar(),
@@ -19,9 +21,9 @@ internal static class CardRegistry
         new DataObstacle("BookStack", "314c5b58-1e69-4aaf-8ebc-2634ce8bf6e3"),
         new DataObstacle("Baguette", "d8a6a063-356d-43db-960e-5b963c4f405b"),
         new DataObstacle("RubberDuck", "f6c94350-1a16-4014-ab6b-90e88f9cdc2b"),
-        new DataObstacle("DominoLine", "6d8e8286-9859-49d3-940f-3b14daf2501c"),
+        new DataObstacle("DominoLine", "6d8e8286-9859-49d3-940f-3b14daf2501c", retired: true),
         new DataObstacle("Sponge", "b5af8a6b-09fd-4981-83be-4c5bdfe6e58e"),
-        new DataObstacle("TinCanPyramid", "8c5903a6-b322-4516-8452-c892dadd0237"),
+        new DataObstacle("TinCanPyramid", "8c5903a6-b322-4516-8452-c892dadd0237", retired: true),
         new DataObstacle("Mattress", "94cd60b7-8434-4f06-b306-3d91f8b9e4c1"),
         new DataObstacle("WhoopeeCushion", "7c5b4e20-e012-4b9e-9764-4aa688695be3"),
         new DataObstacle("HotSaucePuddle", "5dd0ef9a-2167-481a-9170-a505929b9053"),
@@ -34,15 +36,15 @@ internal static class CardRegistry
         new DataObstacle("RevolvingDoor", "424ae098-7460-42b1-9579-993650de4574"),
         new DataObstacle("MiniGolfWindmill", "a171e1b4-5d97-4184-9ef4-e14fe8658bb7"),
         new DataObstacle("Metronome", "294ae1b6-24cc-434e-ac06-edb4306f042a"),
-        new DataObstacle("WhackAMole", "3a9f2919-1829-434f-bf18-4cb7042ac04c"),
-        new DataObstacle("JackInTheBox", "21d3e9a3-33bd-4ada-b23d-09ab8d32f128"),
+        new DataObstacle("WhackAMole", "3a9f2919-1829-434f-bf18-4cb7042ac04c", retired: true),
+        new DataObstacle("JackInTheBox", "21d3e9a3-33bd-4ada-b23d-09ab8d32f128", retired: true),
         new DataObstacle("Turntable", "d2e6d433-5df6-43ba-8a19-94a7ea42e1e6"),
         new DataObstacle("Toaster", "c911804a-ac64-4e0e-bee9-d0a0dab793ae"),
         new DataObstacle("Slingshot", "f5db2031-d3f3-4156-b537-ae66bac4af63"),
         new DataObstacle("ShakenSoda", "bf30a812-8da6-4588-b900-a53c473e9822"),
         new DataObstacle("Mousetrap", "0253ebe1-f3bc-4b29-8373-8600f7c765e8"),
-        new DataObstacle("GardenRake", "65a2e27c-d094-4cee-b85f-7b9719559d9d"),
-        new DataObstacle("PizzaCutter", "0c1ab705-cee0-43d5-9a5d-d71135b65ac2"),
+        new DataObstacle("GardenRake", "65a2e27c-d094-4cee-b85f-7b9719559d9d", retired: true),
+        new DataObstacle("PizzaCutter", "0c1ab705-cee0-43d5-9a5d-d71135b65ac2", retired: true),
         new DataObstacle("MagnifyingGlass", "21877700-5faf-403b-8845-4a9456a73325"),
         new DataObstacle("Toilet", "595a4393-902e-4a8e-b597-f104c2a01812"),
         new DataObstacle("SewerExit", "6b146b54-38ff-466b-bddf-3b4ff5d11071"),   // the Toilet's partner, never drafted
@@ -57,6 +59,11 @@ internal static class CardRegistry
         new DataObstacle("ShockMinefield", "26a70780-46d5-4966-a6ba-0b1f30a9da07"),    // scatters ShockMine (LandMineScatter carrier)
         new DataObstacle("GrenadeShower", "821cc5d4-2da6-4c21-a753-6f0349423121"),     // scatters TeleportGrenade
         new DataObstacle("ReverseRoad", "e1776ea2-0f52-4fec-ab11-56b9c9342b5d"),       // surface swap to the Reverse surface
+        new DataObstacle("BabyOil", "d4e40c99-057f-47ca-bc1f-0fa50a72d5f1"),
+        new DataObstacle("Vacuum", "6c950de3-9553-429b-884f-23ce4db70022"),
+        new DataObstacle("WindTunnel", "738dc5b2-10bb-49c9-a8f2-e84c48309ce1"),
+        new DataObstacle("SpeedBump", "d6de2626-430f-44b2-b15a-31172f08e179"),
+        new DataObstacle("PinballFlipper", "1a6d772c-9b68-4de5-a03b-ca347b543ec2"),
     };
 
     // One clone per slot, built once and reused for every ObstacleManager instance.
@@ -76,6 +83,45 @@ internal static class CardRegistry
         if (_descriptions == null || !description)
             return -1;
         return Array.IndexOf(_descriptions, description);
+    }
+
+    // Reads our spawn marker from a spawned obstacle, and only believes it when the obstacle really is that
+    // card's carrier prefab: another mod writing its own negative affixIndex can't make us rebuild its obstacle.
+    internal static bool TryReadMarker(Obstacle obstacle, out int slot, out int affix, out int pair)
+    {
+        affix = 0;
+        pair = 0;
+        if (!obstacle || !SpawnMarker.TryDecode(obstacle.affixIndex.Value, out slot, out affix, out pair))
+        {
+            slot = -1;
+            return false;
+        }
+        var entry = Get(slot);
+        var description = _descriptions != null && slot < _descriptions.Length ? _descriptions[slot] : null;
+        if (entry == null || !description || !description.prefab)
+        {
+            WarnOnce($"slot{slot}", $"CustomCards: an obstacle carries marker {obstacle.affixIndex.Value} for unknown slot {slot}. " +
+                                    "Does everyone have the same Good Cards version?");
+            return false;
+        }
+        var carrier = description.prefab;
+        bool matches = obstacle.description == carrier.description
+                       || obstacle.name.StartsWith(carrier.name, StringComparison.Ordinal);
+        if (!matches)
+        {
+            WarnOnce($"foreign{obstacle.name}", $"CustomCards: {obstacle.name} has a negative affixIndex ({obstacle.affixIndex.Value}) " +
+                                                $"but isn't {entry.Id}'s carrier ({carrier.name}); another mod's marker? Leaving it alone.");
+            return false;
+        }
+        return true;
+    }
+
+    private static readonly HashSet<string> Warned = new();
+
+    private static void WarnOnce(string key, string message)
+    {
+        if (Warned.Add(key))
+            Plugin.Log.LogWarning(message);
     }
 
     internal static ObstacleDescription DescriptionOf(string id)
@@ -99,10 +145,35 @@ internal static class CardRegistry
                 continue;
             catalog.Add(description);
             Plugin.Log.LogInfo($"CustomCards: {Entries[slot].Id} at index {catalog.Count - 1} " +
-                               $"(carrier {description.prefab.name}, rarity {Entries[slot].Rarity.Value})");
+                               $"(carrier {description.prefab.name}, rarity {RarityText(Entries[slot])})");
         }
         manager.allowedObstacleDescriptions = catalog.ToArray();
+        CheckForClashes(catalog);
     }
+
+    // Another card mod reusing one of our ids (or names) would make CatalogSync and the game's own id-based
+    // rule filters confuse the two cards. Nothing we can fix from here, but say so loudly.
+    private static void CheckForClashes(List<ObstacleDescription> catalog)
+    {
+        foreach (var ours in _descriptions)
+        {
+            if (!ours)
+                continue;
+            foreach (var other in catalog)
+            {
+                if (!other || other == ours)
+                    continue;
+                if (other.id.ToString() == ours.id.ToString())
+                    WarnOnce($"id{ours.name}{other.name}", $"CustomCards: {other.name} (another mod?) uses the same card id as {ours.name}. " +
+                                                           "Rules menu toggles and lobby sync may mix them up.");
+                else if (other.name == ours.name)
+                    WarnOnce($"name{ours.name}", $"CustomCards: another card is also named {ours.name}");
+            }
+        }
+    }
+
+    private static string RarityText(CustomObstacle entry) =>
+        entry.IsRetired ? "retired" : entry.IsPartnerOnly ? "partner only" : entry.Rarity.Value.ToString();
 
     private static ObstacleDescription CreateDescription(CustomObstacle entry, ObstacleDescription[] catalog)
     {
@@ -118,7 +189,7 @@ internal static class CardRegistry
         clone.name = $"CustomContent_{entry.Id}";
         clone.hideFlags = HideFlags.DontUnloadUnusedAsset;
         clone.id = new SerializableGuid(entry.Guid);
-        if (entry.Rarity.Value == CardRarity.Off || entry.IsPartnerOnly)
+        if (!entry.IsDraftable || entry.Rarity.Value == CardRarity.Off)
             clone.maxQuantity = 0;
         else
             clone.rarity = (ObstacleDescription.ObstacleRarity)(entry.Rarity.Value - 1);

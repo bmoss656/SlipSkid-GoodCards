@@ -46,6 +46,13 @@ internal abstract class CustomObstacle
     // Only ever spawned as another card's partner: registered (so indices match) but never drafted.
     public virtual bool IsPartnerOnly => false;
 
+    // Taken out of the game: still registered, because slots and catalog indices must never shift,
+    // but never drafted and no Rarity setting.
+    public virtual bool IsRetired => false;
+
+    // Can this card come up in a draft at all (before its Rarity setting)?
+    internal bool IsDraftable => !IsPartnerOnly && !IsRetired;
+
     // Default for the Carrier config: a specific vanilla card to borrow (asset name), or null to auto-pick.
     public virtual string DefaultCarrier => null;
 
@@ -59,8 +66,9 @@ internal abstract class CustomObstacle
 
     internal virtual void BindConfig(ConfigFile config)
     {
-        Rarity = config.Bind(Section, "Rarity", DefaultRarity,
-            "How often the card is offered. Off keeps it registered but never rolled. Must match for every player.");
+        if (!IsRetired)
+            Rarity = config.Bind(Section, "Rarity", DefaultRarity,
+                "How often the card is offered when a Good Cards card is drawn. Off keeps it registered but never rolled. Host only.");
         Carrier = config.Bind(Section, "Carrier", DefaultCarrier ?? "",
             "Asset name of the vanilla card to borrow (see the Catalog lines in the log). Empty picks one automatically.");
     }

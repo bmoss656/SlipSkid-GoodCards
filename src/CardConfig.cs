@@ -9,9 +9,15 @@ internal static class CardConfig
     internal static ConfigEntry<int> ForceAffixIndex;
     internal static ConfigEntry<bool> DebugKeys;
     internal static ConfigEntry<bool> VerboseLog;
+    internal static ConfigEntry<float> CustomCardChance;
 
     internal static void Bind(ConfigFile config)
     {
+        CustomCardChance = config.Bind("Draft", "CustomCardChance", 0.2f,
+            new ConfigDescription("Host only. Chance that each draft card is a Good Cards card (0.2 = about one in five); " +
+                                  "the rest come from the vanilla pool and any other card mods. The per-card Rarity settings " +
+                                  "still decide which Good Cards card it is. 0 = never, 1 = always.",
+                new AcceptableValueRange<float>(0f, 1f)));
         DebugKeys = config.Bind("Debug", "EnableDebugKeys", false,
             "F6: spawn a flat test arena above the map and drive onto it. F7 (host): spawn every custom obstacle ahead of you.");
         VerboseLog = config.Bind("Debug", "VerboseLog", false,

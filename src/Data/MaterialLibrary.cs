@@ -83,7 +83,7 @@ internal static class MaterialLibrary
         return material;
     }
 
-    private static Color32 ParseHex(string hex)
+    internal static Color32 ParseHex(string hex)
     {
         hex = hex.TrimStart('#');
         if (hex.Length < 6 || !uint.TryParse(hex.Substring(0, 6), NumberStyles.HexNumber, CultureInfo.InvariantCulture, out uint rgb))

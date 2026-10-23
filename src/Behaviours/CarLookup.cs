@@ -24,4 +24,12 @@ internal static class CarLookup
 
     // Our zones stay quiet while their obstacle is being carried around during placement.
     internal static bool IsPlaced(Obstacle obstacle) => !obstacle || obstacle.state == Obstacle.ObstacleState.Placed;
+
+    // Single-use pieces (mines, grenades) only go off mid-race, so nothing parked or respawning during
+    // the draft, placement or scoreboard uses them up before anyone gets to see them.
+    internal static bool IsRacing()
+    {
+        var gm = Game.GameManager.instance;
+        return !gm || !gm.networkVariables || gm.networkVariables.state.Value == Game.GameManager.GameState.Racing;
+    }
 }

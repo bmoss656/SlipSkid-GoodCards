@@ -86,8 +86,8 @@ internal static class DebugSpawner
         int spawned = 0;
         for (int slot = 0; slot < CardRegistry.Entries.Length; slot++)
         {
-            // Partners arrive with their parent card (the Toilet drops its own Sewer Exit).
-            var description = CardRegistry.Entries[slot].IsPartnerOnly ? null : CardRegistry.DescriptionOf(CardRegistry.Entries[slot].Id);
+            // Partners arrive with their parent card (the Toilet drops its own Sewer Exit); retired cards are skipped.
+            var description = !CardRegistry.Entries[slot].IsDraftable ? null : CardRegistry.DescriptionOf(CardRegistry.Entries[slot].Id);
             if (!description)
                 continue;
             int row = spawned / Columns, column = spawned % Columns;

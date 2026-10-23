@@ -164,10 +164,95 @@ What we've confirmed about Slip & Skid's code. Unconfirmed guesses go under "Lea
     `GetComponentsInChildren`, `MeshFilter.sharedMesh`, `Renderer.sharedMaterial`, `LayerMask.LayerToName`.
   - Use `System.Math` for constants. For colliders, rely on the ones primitives come with (BoxCollider on Cube).
 
+### Draft odds (2026-10-22)
+- The draft roll is `ObstacleDescription.GetRandomWeightedObstacleDescription(descriptions, history, currentList, count)`
+  with integer weights from the rarity table (110/60/37/25/12/2), 0 for `maxQuantity == 0`, invalid contexts
+  or used-up quantity. `ObstacleManager.GetRandomObstacleIndex` calls it per slot, and `ApplyBiases`
+  (`GameManager.obstacleGenerationBiases`) calls it again to replace slots. Both happen inside
+  `GetRandomObstaclesDescriptions` (host only).
+- With 40 extra cards at Common/Uncommon, plain weights made nearly every draft card ours. `DraftOddsPatch`
+  (a Prefix that narrows `descriptions`) first rolls "Good Cards or not" per slot (`[Draft] CustomCardChance`).
+
+### Retired cards (2026-10-22)
+- `DataObstacle(id, guid, retired: true)`: still registered in its slot (catalog indices never shift), `maxQuantity = 0`,
+  no Rarity config, skipped by `ForceCard = *` and F7. Retired in 0.2.0: DominoLine, TinCanPyramid, GardenRake,
+  JackInTheBox, WhackAMole, PizzaCutter.
+
+### Surfaces on obstacles and grip (2026-10-22)
+- Grip comes from `CurrentSurface` (the `SurfaceInfo` on whatever the ground raycast hits): sideways grip is
+  `friction * driftFriction`, coasting slows by `(1 - friction)^dt`, steering scales with `stickyness`, engine with
+  `accelerationModifier`. Baby Oil puts a `SurfaceInfo` with a low-grip copy of the default surface on a thin
+  solid slab. It's local (never in `SurfaceManager.surfaces`; only surface swaps send indices).
+- `Obstacle.OnNetworkSpawn` takes the first child `SurfaceInfo` as the obstacle's `CurrentSurface`, so a
+  surface-swap card would turn the slick into its surface too (like any obstacle).
+- `CarEffects.UpdateDriftEffects` takes drift/wheelspin particle amounts and colours from
+  `CurrentSurface.effects` (`driftParticlesMax`, `slipParticlesMax`, `mainColor`/`lightColor`/`darkColor`), so a
+  surface copy can recolour them (the oil's are amber).
+- Also stripped: `Mathf.Deg2Rad`, `Time.fixedTime`. Inside OnTriggerStay/FixedUpdate, `Time.time` is the physics step time.
+  OnTriggerStay fires once per car collider, so continuous forces must dedupe per car per step.
+
+### Joining and other card mods (2026-10-22)
+- The only connection refusals (`Utils.Networking.ConnectionApprovalCheck`) are "Lobby is already playing"
+  (`GameManager.IsPlaying`: any state but InMenu, **or `LevelSelect.instance` exists**) and "Lobby is full"
+  (4 players). The client logs the reason with `Debug.Log("Approval Declined Reason: ...")`, which the
+  stripped build doesn't forward to the BepInEx log. No NetworkConfig/prefab checks are involved.
+- MoreCards (`slipskid.morecards`), EvenMoreCards (`onlynothing.evenmorecards`) and MoreCustomisations
+  (`onlynothing.morecustomisations`) were decompiled. None touches NetworkConfig, approval, `affixIndex`,
+  `Obstacle.OnNetworkSpawn` or `LocalizedString`. Both card mods append clones to
+  `allowedObstacleDescriptions` in an `ObstacleManager.Awake` postfix (MoreCards only once per process),
+  and EvenMoreCards appends 3 surfaces to `SurfaceManager.surfaces`. They identify their cards through
+  the owner's draft pick (`selectedObstacleIndex` -> `obstaclesToSelectIndices`), not the obstacle.
+- BepInEx loads plugins sorted by GUID (case-insensitive), so default-priority postfixes run in that order
+  on every machine. Indices still differ whenever players have different mods, versions or settings.
+- `CatalogSync` (named messages `SlipSkid.GoodCards.Catalog/CatalogRequest/CatalogReply`): the host sends
+  its card keys (`id/name`) and surface names to each client. The client reorders its lists to match,
+  puts placeholders where it lacks a card, and replies with what it's missing. The host then excludes those
+  from the draft. A client that never replies (no Good Cards) excludes all our cards. It's applied again
+  after every manager Awake (Priority.Last).
+- MoreCards' Supersize multiplies `SphereCarController.floorRaycastDistance` with the car size, for the same
+  reason as our grow fix below.
+
+### Defensive measures against other mods (2026-10-23)
+- Every Harmony patch body is wrapped (`Guard`): exceptions are logged once and the original method runs
+  as normal. A Harmony Finalizer would also swallow the game's own exceptions, so it isn't used. Hot paths
+  (Steer getters, ApplyModifiers) use inline try/catch to avoid a closure allocation per call.
+- Named message handlers are wrapped too (`Guard.Handler`), so a malformed message is dropped.
+- `CardRegistry.TryReadMarker` only accepts a negative `affixIndex` as ours when the obstacle is that slot's
+  carrier prefab (`obstacle.description == carrier.prefab.description`, or the instance name starts with the
+  prefab's name).
+- `CheckForClashes` warns when another catalog entry shares one of our card ids or names.
+- `[BepInIncompatibility]` on the old plugin ids `brad.slipskid.goodcards` (0.1.0) and
+  `brad.slipskid.customcontent` (dev builds).
+
+### Car scale and grip (2026-10-22)
+- `SphereCarController.AddScale` (CarModifier scale) scales every child of the controller, including the
+  physics sphere. The ground check in `Simulate` is `Physics.Raycast(sphereRigidbody.position, down,
+  floorRaycastDistance)`, so a grown car's ray stops short of the road: `OnGround` false, no grip.
+  `ApplyModifiers` runs just before the raycast in `Simulate`; `scaleModifier` is the frame's largest
+  scale axis (0 when none). `GrowGroundCheckPatch` stretches the ray by that factor, relatively.
+
+### Placing a second obstacle (Toilet) (2026-10-22)
+- `PlaceObstacleClientRpc` sets Placed, then the owner's `PlayerData.PlaceObstacle` (sets `placedObstacle`,
+  `UnBindFromObstacle`, then `playerObstacleHandNetworking.Show`: the pointing hand takes the camera
+  (`EnableObstacleHand`) and the `ObstacleHand` action map after 0.2 s). Non-owners show the hand too. Then
+  `OnPlace`.
+- `BindToObstacle` ends on the "Player" map. The PlacingObstacles state re-enables `currentObstacle.EnableInputs()`
+  ("ObstaclePlacement" map) every frame while `currentObstacle` is set.
+- The placement camera's target is only set by `CameraManager.EnableObstaclePlacementView`, which the state
+  machine calls once when placement view turns on. It re-aims at each local player's `currentObstacle` when
+  they differ, so call it again after binding a second obstacle mid-phase (ToiletPairing does).
+- With `obstaclePlacementTimerSec == 0`, `_hasHandledObstaclePlacementTimer` is set straight away, so it
+  only means "timer ran out" when a timer exists.
+- Timer end: the host `ForcePlaceObstacle`s each unplaced player's `currentObstacle` (as the host sees it).
+- NGO recycles NetworkObjectIds, so spawn order can't be inferred from ids. The Toilet and its exit now share
+  a pair key in the spawn marker: `-(1000 + pair*100000 + slot*100 + affix)`.
+- `ObstacleScatter` passes its own `affixIndex.Value` (our marker for scatter cards) to every piece's `Spawn`;
+  the marker patch keeps only the real affix from it.
+
 ## Implemented: first placeable obstacle (Route A, borrowed carrier)
 Written 2026-10-21. Builds cleanly against BepInEx 6.0.0-be.697 (installed in the game folder);
 NOT yet run in game. Code: `src/Registry/`, `src/Obstacles/`, `src/Patches/`, `src/Diagnostics/`.
-Marker format: `affixIndex = -(1000 + slot * 100 + affix)`.
+Marker format: `affixIndex = -(1000 + slot * 100 + affix)` (0.2.0 adds `pair * 100000`, see above).
 The first obstacle is `BumperPillar` (square pillar from the Cube primitive, its BoxCollider, `BounceZone`).
 To test: set `[Debug] ForceCard = BumperPillar` on the host.
 
@@ -277,11 +362,11 @@ BoostPad 3.5x1x3.5, Pea 0.4. Surface swaps are 11 m cubes (Magma XL 20 m).
 - Host: `GameManager.CheckIfPlayersPlacedObstacles` ends the phase once every `placedObstacle` is true.
   On timer end (~line 3490) it sets `_hasHandledObstaclePlacementTimer` and force-places each player's
   `currentObstacle`.
-- ToiletPairing: owner clears `placedObstacle` in the same frame it was set (host never sees true), host
-  spawns the Sewer Exit into the player's hands from the `OnPlace` postfix. If the timer already ran out (or
-  the toilet was spawned placed), the exit is dropped already placed and the owner re-sets the flag.
-- Pairing rule (same on every machine): a toilet's exit is the lowest-id Sewer Exit of the same player
-  spawned after it.
+- ToiletPairing (0.2.0): a Prefix on the owner's `PlayerData.PlaceObstacle` skips vanilla for a Toilet (no
+  `placedObstacle`, no hand), unbinds it and waits; the host spawns the Sewer Exit into the player's hands from
+  the `OnPlace` postfix. If the timer already ran out (or the toilet was spawned placed), the exit is dropped
+  already placed and the owner sets the flag. After 6 s with no exit the owner ends the turn anyway.
+- Pairing rule (same on every machine): the toilet's exit is the Sewer Exit with the same pair key.
 
 ### Car state helpers
 - `SphereCarController.Teleport(position, rotation, forward, velocity, angularVelocity)`: used by

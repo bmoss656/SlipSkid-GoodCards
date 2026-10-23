@@ -16,6 +16,7 @@ internal sealed class CarrierParts
 internal sealed class CustomObstacleTag : MonoBehaviour
 {
     public int Slot;
+    public int Pair;   // non-zero on a Toilet and its Sewer Exit (same key on both)
 }
 
 internal static class VisualSwap

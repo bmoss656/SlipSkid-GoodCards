@@ -111,7 +111,9 @@ internal sealed class ColliderData
 internal sealed class ZoneData
 {
     public string type;   // "kill", "bounce", "accel", "slow", "push", "launch", "plate", "toilet", "grow",
-                          // "gravity" (low gravity inside this box), "spawn" (teleport the car back to its start)
+                          // "gravity" (low gravity inside this box), "spawn" (teleport the car back to its start),
+                          // "oil" (solid: a slippery surface), "splash" (oil droplets off passing cars),
+                          // "vacuum", "wind", "speedbump"
 
     // gravity: fraction of the map's gravity cancelled inside the box (0.7 = 30% gravity).
     public float gravityFactor = 0.7f;
@@ -162,6 +164,40 @@ internal sealed class ZoneData
     public float launchUp = 4f;
     public string rubber = "toon:#E3263F";
     public string pouch = "toon:#6B3E26";
+
+    // oil (on a solid collider): the slick's surface as fractions of normal road: sideways grip,
+    // steering and engine push, and its colour (#RRGGBB) for skid marks and the car's drift spray.
+    public float grip = 0.06f;
+    public float steer = 0.35f;
+    public float engine = 0.6f;
+    public string tint = "#E9A93C";
+
+    // splash: droplet materials (specs) and the slick's top height above the obstacle's origin.
+    public string colorA = "toon:#E9A93C";
+    public string colorB = "glow:#FFF4D6";
+    public float surfaceHeight = 0.06f;
+
+    // vacuum: drag cars towards `mouth` (node space) at pullSpeedFar (at `reach`) rising to pullSpeed (at the
+    // mouth), never accelerating them harder than `pull`; catch within catchDistance, hold, then fire out along
+    // `velocity` (node space). Uses cooldown and channel too.
+    public float[] mouth;
+    public float pull = 22f;
+    public float pullSpeedFar = 4f;
+    public float pullSpeed = 12f;
+    public float reach = 14f;
+    public float catchDistance = 2.2f;
+    public float escapeDistance = 2.4f;   // inside this (the nozzle) driving away no longer weakens the pull
+    public float escapeFactor = 0.35f;
+    public float holdTime = 0.9f;
+
+    // wind: blows against `direction` (node space, the way through) unless the car is doing passSpeed.
+    public float[] direction;
+    public float wind = 45f;
+    public float passSpeed = 30f;
+
+    // speedbump: crossing at minSpeed or faster launches the car `up`, keeping `keep` of its ground speed.
+    public float up = 22f;
+    public float keep = 0.9f;
 }
 
 internal sealed class AnimData

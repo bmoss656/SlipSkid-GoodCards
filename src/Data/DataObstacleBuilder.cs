@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Obstacles;
 using UnityEngine;
 using UnityEngine.Rendering;
+using World;
 
 namespace SlipSkid.CustomContent;
 
@@ -314,6 +315,45 @@ internal static class DataObstacleBuilder
                 sling.launchUp = zone.launchUp;
                 sling.rubberMaterial = MaterialLibrary.Resolve(zone.rubber, null);
                 sling.pouchMaterial = MaterialLibrary.Resolve(zone.pouch, null);
+                break;
+            case "oil":
+                var surfaceInfo = go.AddComponent<SurfaceInfo>();
+                surfaceInfo.surface = OilSurface.Get(zone.grip, zone.steer, zone.engine, MaterialLibrary.ParseHex(zone.tint ?? ""));
+                break;
+            case "splash":
+                var splash = go.AddComponent<OilSplash>();
+                splash.oil = MaterialLibrary.Resolve(zone.colorA, null);
+                splash.shine = MaterialLibrary.Resolve(zone.colorB, null);
+                splash.surfaceHeight = zone.surfaceHeight;
+                break;
+            case "vacuum":
+                var vacuum = go.AddComponent<VacuumZone>();
+                vacuum.mouth = ToVector(zone.mouth, Vector3.zero);
+                vacuum.pull = zone.pull;
+                vacuum.pullSpeedFar = zone.pullSpeedFar;
+                vacuum.pullSpeed = zone.pullSpeed;
+                vacuum.reach = zone.reach;
+                vacuum.catchDistance = zone.catchDistance;
+                vacuum.escapeDistance = zone.escapeDistance;
+                vacuum.escapeFactor = zone.escapeFactor;
+                vacuum.holdTime = zone.holdTime;
+                vacuum.localVelocity = ToVector(zone.velocity, vacuum.localVelocity);
+                vacuum.cooldown = zone.cooldown;
+                vacuum.channel = zone.channel;
+                break;
+            case "wind":
+                var wind = go.AddComponent<WindTunnelZone>();
+                wind.localDirection = ToVector(zone.direction, Vector3.forward);
+                wind.wind = zone.wind;
+                wind.passSpeed = zone.passSpeed;
+                break;
+            case "speedbump":
+                var bump = go.AddComponent<SpeedBumpZone>();
+                bump.minSpeed = zone.minSpeed > 0f ? zone.minSpeed : bump.minSpeed;
+                bump.up = zone.up;
+                bump.keep = zone.keep;
+                bump.cooldown = zone.cooldown;
+                bump.channel = zone.channel;
                 break;
             case "grow":
                 var grow = go.AddComponent<GrowZone>();

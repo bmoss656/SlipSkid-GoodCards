@@ -21,8 +21,8 @@ internal static class TriggerBus
         var messaging = nm && nm.IsListening ? nm.CustomMessagingManager : null;
         if (messaging == null || messaging == _registeredWith)
             return;
-        messaging.RegisterNamedMessageHandler(MessageName, OnMessage);
-        messaging.RegisterNamedMessageHandler(PosesMessageName, OnPosesMessage);
+        messaging.RegisterNamedMessageHandler(MessageName, Guard.Handler("TriggerBus", OnMessage));
+        messaging.RegisterNamedMessageHandler(PosesMessageName, Guard.Handler("TriggerBus", OnPosesMessage));
         _registeredWith = messaging;
     }
 

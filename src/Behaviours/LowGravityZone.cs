@@ -41,7 +41,7 @@ internal sealed class SpawnZone : MonoBehaviour
     {
         if (!CarLookup.IsPlaced(_obstacle) || Time.time - _last < cooldown || !CarLookup.TryGetOwnedCar(other, out _, out var car))
             return;
-        if (!car.player || !GameManager.instance)
+        if (!car.player || !GameManager.instance || !CarLookup.IsRacing())
             return;
         _last = Time.time;
         GameManager.instance.PlacePlayerAtSpawn(car.player);

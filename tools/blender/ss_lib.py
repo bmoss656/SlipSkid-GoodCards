@@ -78,7 +78,7 @@ def material(spec):
         return mat
     mat = bpy.data.materials.new(spec)
     mat.use_nodes = True
-    if spec.startswith("toon:"):
+    if spec.startswith("toon:") or spec.startswith("glow:"):
         h = spec[6:12]
         rgb = tuple(int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
     else:
@@ -87,7 +87,7 @@ def material(spec):
     bsdf = mat.node_tree.nodes.get("Principled BSDF")
     bsdf.inputs["Base Color"].default_value = (*rgb, 1)
     bsdf.inputs["Roughness"].default_value = 0.55
-    if spec in EMISSIVE:
+    if spec in EMISSIVE or spec.startswith("glow:"):
         bsdf.inputs["Emission Color"].default_value = (*rgb, 1)
         bsdf.inputs["Emission Strength"].default_value = 2.0
     if spec == "mat:Bubble":
@@ -243,6 +243,177 @@ def arc_slab(name, r_in, r_out, angle_deg, thickness, loc=(0, 0, 0), start_deg=0
     bm.faces.new(rings[-1])
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
     return _finish_mesh(_mesh_obj(name, bm, loc, (0, 0, 0), parent), mat, bevel, 30)
+
+
+def lathe(name, profile, loc=(0, 0, 0), rot=(0, 0, 0), mat="toon:#FFFFFF", segments=32, scale=(1, 1, 1), parent=None,
+          smooth_angle=50, bevel=0.0, closed=False):
+    """Surface of revolution around local Z. `profile` is [(radius, z), ...] from bottom to top; a radius of 0
+    closes that end to a point, otherwise the ends are capped flat. `closed` treats the profile as a loop
+    (rings, tubes) with no caps. `scale` squashes it (e.g. oval bowls)."""
+    bm = bmesh.new()
+    rings = []
+    for r, z in profile:
+        if r <= 1e-5:
+            rings.append([bm.verts.new((0, 0, z))])
+            continue
+        ring = []
+        for i in range(segments):
+            a = 2 * math.pi * i / segments
+            ring.append(bm.verts.new((r * math.cos(a) * scale[0], r * math.sin(a) * scale[1], z * scale[2])))
+        rings.append(ring)
+    pairs = len(rings) if closed else len(rings) - 1
+    for k in range(pairs):
+        a, b = rings[k], rings[(k + 1) % len(rings)]
+        if len(a) == 1 and len(b) == 1:
+            continue
+        for i in range(segments):
+            j = (i + 1) % segments
+            if len(a) == 1:
+                bm.faces.new((a[0], b[i], b[j]))
+            elif len(b) == 1:
+                bm.faces.new((a[i], b[0], a[j]))
+            else:
+                bm.faces.new((a[i], b[i], b[j], a[j]))
+    if not closed and len(rings[0]) > 1:
+        bm.faces.new(list(reversed(rings[0])))
+    if not closed and len(rings[-1]) > 1:
+        bm.faces.new(rings[-1])
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return _finish_mesh(_mesh_obj(name, bm, loc, rot, parent), mat, bevel, smooth_angle)
+
+
+def loft(name, stations, loc=(0, 0, 0), rot=(0, 0, 0), mat="toon:#FFFFFF", segments=24, parent=None, smooth_angle=60,
+         flat_bottom=0.0):
+    """Tapered body along local X from elliptical cross sections. `stations` is [(x, half_width_y, half_height_z,
+    z_offset), ...]; a station with zero size closes the end to a point. `flat_bottom` (0..1) squashes the lower
+    half of every section (loaves and handles that sit on the ground)."""
+    bm = bmesh.new()
+    rings = []
+    for x, ry, rz, dz in stations:
+        if ry <= 1e-5 or rz <= 1e-5:
+            rings.append([bm.verts.new((x, 0, dz))])
+            continue
+        ring = []
+        for i in range(segments):
+            a = 2 * math.pi * i / segments
+            s = math.sin(a)
+            z = rz * s * (1 - flat_bottom if s < 0 else 1)
+            ring.append(bm.verts.new((x, ry * math.cos(a), dz + z)))
+        rings.append(ring)
+    for k in range(len(rings) - 1):
+        a, b = rings[k], rings[k + 1]
+        for i in range(segments):
+            j = (i + 1) % segments
+            if len(a) == 1:
+                bm.faces.new((a[0], b[j], b[i]))
+            elif len(b) == 1:
+                bm.faces.new((a[i], a[j], b[0]))
+            else:
+                bm.faces.new((a[i], a[j], b[j], b[i]))
+    if len(rings[0]) > 1:
+        bm.faces.new(rings[0])
+    if len(rings[-1]) > 1:
+        bm.faces.new(list(reversed(rings[-1])))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return _finish_mesh(_mesh_obj(name, bm, loc, rot, parent), mat, 0, smooth_angle)
+
+
+def rounded_rect(name, size, radius, height, loc=(0, 0, 0), rot=(0, 0, 0), mat="toon:#FFFFFF", corner_segments=6,
+                 bevel=0.06, parent=None):
+    """Slab with rounded corners in plan: `size` (x, y), corner `radius`, `height` up from loc's z."""
+    bm = bmesh.new()
+    hx, hy = size[0] / 2 - radius, size[1] / 2 - radius
+    pts = []
+    for cx, cy, start in [(hx, hy, 0), (-hx, hy, 90), (-hx, -hy, 180), (hx, -hy, 270)]:
+        for i in range(corner_segments + 1):
+            a = math.radians(start + 90 * i / corner_segments)
+            pts.append((cx + radius * math.cos(a), cy + radius * math.sin(a)))
+    bottom = [bm.verts.new((x, y, 0)) for x, y in pts]
+    top = [bm.verts.new((x, y, height)) for x, y in pts]
+    n = len(pts)
+    bm.faces.new(list(reversed(bottom)))
+    bm.faces.new(top)
+    for i in range(n):
+        j = (i + 1) % n
+        bm.faces.new((bottom[i], bottom[j], top[j], top[i]))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return _finish_mesh(_mesh_obj(name, bm, loc, rot, parent), mat, bevel, 30)
+
+
+def taper_capsule(name, r1, r2, length, height, loc=(0, 0, 0), rot=(0, 0, 0), mat="toon:#FFFFFF", segments=20,
+                  bevel=0.08, parent=None):
+    """Upright slab whose plan is a tapered capsule: a circle of r1 at the origin joined by tangents to a
+    circle of r2 at (length, 0). Rises `height` from loc's z (pinball flipper bats)."""
+    d = length
+    k = (r1 - r2) / d
+    ang = math.acos(max(-1.0, min(1.0, k)))   # tangent touch angle, measured from +X
+    pts = []
+    for i in range(segments + 1):             # big end: from +ang round the back to -ang
+        a = ang + (2 * math.pi - 2 * ang) * i / segments
+        pts.append((r1 * math.cos(a), r1 * math.sin(a)))
+    for i in range(segments + 1):             # small end: from -ang round the front to +ang
+        a = -ang + 2 * ang * i / segments
+        pts.append((d + r2 * math.cos(a), r2 * math.sin(a)))
+    bm = bmesh.new()
+    bottom = [bm.verts.new((x, y, 0)) for x, y in pts]
+    top = [bm.verts.new((x, y, height)) for x, y in pts]
+    n = len(pts)
+    bm.faces.new(list(reversed(bottom)))
+    bm.faces.new(top)
+    for i in range(n):
+        j = (i + 1) % n
+        bm.faces.new((bottom[i], bottom[j], top[j], top[i]))
+    bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return _finish_mesh(_mesh_obj(name, bm, loc, rot, parent), mat, bevel, 35)
+
+
+def puddle(name, rx, ry, height, loc=(0, 0, 0), rot=(0, 0, 0), mat="toon:#FFFFFF", wobble=0.18, seed=1, segments=72,
+           parent=None):
+    """Flat liquid pool: an irregular rounded outline (radii rx, ry, edge wobble as a fraction) with a soft
+    domed rim, `height` thick, sitting on loc."""
+    rnd = __import__("random").Random(seed)
+    waves = [(rnd.uniform(0.4, 1.0) * wobble / (n * 0.6), n, rnd.uniform(0, 2 * math.pi)) for n in (2, 3, 5, 7)]
+    bm = bmesh.new()
+    rings = []
+    for scale, z in [(1.0, 0.0), (0.985, height * 0.55), (0.94, height * 0.9), (0.88, height)]:
+        ring = []
+        for i in range(segments):
+            a = 2 * math.pi * i / segments
+            r = 1 + sum(amp * math.sin(n * a + ph) for amp, n, ph in waves)
+            ring.append(bm.verts.new((rx * r * scale * math.cos(a), ry * r * scale * math.sin(a), z)))
+        rings.append(ring)
+    for k in range(len(rings) - 1):
+        a, b = rings[k], rings[k + 1]
+        for i in range(segments):
+            j = (i + 1) % segments
+            bm.faces.new((a[i], a[j], b[j], b[i]))
+    bm.faces.new(rings[-1])
+    bm.faces.new(list(reversed(rings[0])))
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    return _finish_mesh(_mesh_obj(name, bm, loc, rot, parent), mat, 0, 70)
+
+
+_SEGMENTS = {"0": "abcdef", "1": "bc", "2": "abged", "3": "abgcd", "4": "fgbc", "5": "afgcd", "6": "afgedc",
+             "7": "abc", "8": "abcdefg", "9": "abcdfg"}
+
+
+def digits(name, text, height, loc=(0, 0, 0), rot=(0, 0, 0), mat="toon:#14141A", depth=0.05, parent=None):
+    """Seven-segment number `text` in the XZ plane (readable from -Y), centred on loc. Returns its pivot."""
+    root = pivot(name, loc, rot, parent=parent)
+    w, t = height * 0.5, height * 0.12
+    gap = w * 0.45
+    total = len(text) * w + (len(text) - 1) * gap
+    for i, ch in enumerate(text):
+        cx = -total / 2 + w / 2 + i * (w + gap)
+        h2, w2 = height / 2, w / 2
+        seg = {"a": ((cx, h2 - t / 2), (w, t)), "g": ((cx, 0), (w, t)), "d": ((cx, -h2 + t / 2), (w, t)),
+               "f": ((cx - w2 + t / 2, h2 / 2), (t, h2)), "b": ((cx + w2 - t / 2, h2 / 2), (t, h2)),
+               "e": ((cx - w2 + t / 2, -h2 / 2), (t, h2)), "c": ((cx + w2 - t / 2, -h2 / 2), (t, h2))}
+        for s in _SEGMENTS.get(ch, ""):
+            (x, z), (sx, sz) = seg[s]
+            box(f"{name}_{i}{s}", (sx, depth, sz), (x, 0, z), mat=mat, bevel=0, parent=root)
+    return root
 
 
 def pivot(name, loc=(0, 0, 0), rot=(0, 0, 0), parent=None, anim=None, motion=None, timed=None, crumble=None, effect=None):

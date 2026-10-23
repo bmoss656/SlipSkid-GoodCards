@@ -15,10 +15,20 @@ internal static class SpawnMarkerPatch
     // SpawnWithOwnership, so the marker reaches clients in the spawn payload.
     private static void Prefix(ObstacleDescription __instance, ref int affixIndex)
     {
-        int slot = CardRegistry.SlotOf(__instance);
-        if (slot < 0)
-            return;
-        affixIndex = SpawnMarker.Encode(slot, affixIndex);
+        try
+        {
+            int slot = CardRegistry.SlotOf(__instance);
+            if (slot < 0)
+                return;
+            // A scatter passes its own (marked) affixIndex on to its pieces: keep only the real affix.
+            if (SpawnMarker.TryDecode(affixIndex, out _, out int carriedAffix))
+                affixIndex = carriedAffix;
+            affixIndex = SpawnMarker.Encode(slot, affixIndex, ToiletPairing.PairKeyForSpawn(CardRegistry.Get(slot)));
+        }
+        catch (Exception e)
+        {
+            Guard.Report("SpawnMarker", e);
+        }
     }
 }
 
@@ -29,23 +39,26 @@ internal static class VisualSwapPatch
     // OnNetworkSpawn) caches colliders and renderers, so swapping now makes the game use ours.
     private static void Prefix(Obstacle __instance)
     {
-        if (!SpawnMarker.TryDecode(__instance.affixIndex.Value, out int slot, out _))
-            return;
-        if (__instance.GetComponent<CustomObstacleTag>())
-            return;
-
-        var entry = CardRegistry.Get(slot);
-        if (entry == null)
+        int slot, pair;
+        try
         {
-            Plugin.Log.LogWarning($"VisualSwap: unknown custom slot {slot}. Does everyone have the same mod version?");
+            if (!CardRegistry.TryReadMarker(__instance, out slot, out _, out pair) || __instance.GetComponent<CustomObstacleTag>())
+                return;
+        }
+        catch (Exception e)
+        {
+            Guard.Report("VisualSwap", e);
             return;
         }
+        var entry = CardRegistry.Get(slot);
 
         try
         {
             var carrier = entry.KeepCarrier ? VisualSwap.ReadCarrier(__instance) : VisualSwap.StripCarrier(__instance);
             entry.Build(__instance, carrier);
-            __instance.gameObject.AddComponent<CustomObstacleTag>().Slot = slot;
+            var tag = __instance.gameObject.AddComponent<CustomObstacleTag>();
+            tag.Slot = slot;
+            tag.Pair = pair;
             Plugin.Log.LogInfo($"VisualSwap: {entry.Id} built on {__instance.name}");
         }
         catch (Exception e)
@@ -59,9 +72,9 @@ internal static class VisualSwapPatch
 internal static class AffixPatch
 {
     // Every machine. The vanilla method ignores our negative marker, so apply the packed affix ourselves.
-    private static bool Prefix(Obstacle __instance)
+    private static bool Prefix(Obstacle __instance) => Guard.Prefix("Affix", () =>
     {
-        if (!SpawnMarker.TryDecode(__instance.affixIndex.Value, out _, out int affixIndex))
+        if (!CardRegistry.TryReadMarker(__instance, out _, out int affixIndex, out _))
             return true;
         if (affixIndex > 0)
         {
@@ -73,5 +86,5 @@ internal static class AffixPatch
             }
         }
         return false;
-    }
+    });
 }

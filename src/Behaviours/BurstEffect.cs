@@ -22,6 +22,9 @@ internal sealed class BurstEffect : MonoBehaviour
 
     private void Start() => _obstacle = GetComponentInParent<Obstacle>();
 
+    internal static bool ConsumesOn(Obstacle obstacle, int channel) =>
+        obstacle && channel >= 0 && System.Array.Exists(obstacle.GetComponentsInChildren<BurstEffect>(true), e => e.consume && e.channel == channel);
+
     // `target` is extra position data from the trigger (the Teleport Grenade sends where the car reappeared).
     internal void Play(Vector3 target)
     {
@@ -45,6 +48,7 @@ internal sealed class BurstEffect : MonoBehaviour
         _used = true;
         if (!_obstacle)
             return;
+        Plugin.Log.LogInfo($"BurstEffect: {_obstacle.name} ({_obstacle.NetworkObjectId}) used up at {transform.position}");
         foreach (var renderer in _obstacle.GetComponentsInChildren<Renderer>(true))
             renderer.enabled = false;
         foreach (var collider in _obstacle.GetComponentsInChildren<Collider>(true))

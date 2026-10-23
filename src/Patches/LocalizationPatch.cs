@@ -9,13 +9,23 @@ namespace SlipSkid.CustomContent;
 [HarmonyPatch(typeof(LocalizedString), nameof(LocalizedString.GetLocalizedString), new Type[0])]
 internal static class LocalizationPatch
 {
+    // Only answers for our own cards' LocalizedString objects (matched by reference); everything else,
+    // including other mods' cards, goes through untouched.
     private static bool Prefix(LocalizedString __instance, ref string __result)
     {
-        if (!CardText.TryGet(__instance, out string text))
+        try
+        {
+            if (!CardText.TryGet(__instance, out string text))
+                return true;
+            if (CardConfig.VerboseLog.Value)
+                CardText.LogVanillaOnce();
+            __result = text;
+            return false;
+        }
+        catch (Exception e)
+        {
+            Guard.Report("CardText", e);
             return true;
-        if (CardConfig.VerboseLog.Value)
-            CardText.LogVanillaOnce();
-        __result = text;
-        return false;
+        }
     }
 }

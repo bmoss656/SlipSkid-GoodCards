@@ -14,10 +14,11 @@ internal sealed class DataObstacle : CustomObstacle
     private readonly string _id;
     private readonly ObstacleData _data;
 
-    public DataObstacle(string id, string guid)
+    public DataObstacle(string id, string guid, bool retired = false)
     {
         _id = id;
         Guid = new Guid(guid);
+        IsRetired = retired;
         _data = Load(id);
     }
 
@@ -29,6 +30,7 @@ internal sealed class DataObstacle : CustomObstacle
     public override string FullArtFile => _data is { fullArt: true } ? Path.Combine("obstacles", $"{_id}_card.png") : null;
     public override string PartnerId => _data?.partner;
     public override bool IsPartnerOnly => _data is { partnerOnly: true };
+    public override bool IsRetired { get; }
     public override string DefaultCarrier => _data?.carrier;
     public override bool KeepCarrier => _data is { keepCarrier: true };
 
